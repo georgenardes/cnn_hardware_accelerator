@@ -1,0 +1,9 @@
+# arquivos
+*.bak
+
+
+# diretorios
+*/db/
+*/greybox_tmp/
+*/incremental_db/
+*/output_files/
