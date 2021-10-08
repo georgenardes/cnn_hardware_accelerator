@@ -1,0 +1,91 @@
+# -------------------------------------------------------------------------- #
+#
+# Copyright (C) 2016  Intel Corporation. All rights reserved.
+# Your use of Intel Corporation's design tools, logic functions 
+# and other software and tools, and its AMPP partner logic 
+# functions, and any output files from any of the foregoing 
+# (including device programming or simulation files), and any 
+# associated documentation or information are expressly subject 
+# to the terms and conditions of the Intel Program License 
+# Subscription Agreement, the Intel Quartus Prime License Agreement,
+# the Intel MegaCore Function License Agreement, or other 
+# applicable license agreement, including, without limitation, 
+# that your use is for the sole purpose of programming logic 
+# devices manufactured by Intel and sold by Intel or its 
+# authorized distributors.  Please refer to the applicable 
+# agreement for further details.
+#
+# -------------------------------------------------------------------------- #
+#
+# Quartus Prime
+# Version 16.1.0 Build 196 10/24/2016 SJ Lite Edition
+# Date created = 09:21:43  September 08, 2021
+#
+# -------------------------------------------------------------------------- #
+#
+# Notes:
+#
+# 1) The default values for assignments are stored in the file:
+#		fpga_design_assignment_defaults.qdf
+#    If this file doesn't exist, see file:
+#		assignment_defaults.qdf
+#
+# 2) Altera recommends that you do not modify this file. This
+#    file is updated automatically by the Quartus Prime software
+#    and any changes you make may be lost or overwritten.
+#
+# -------------------------------------------------------------------------- #
+
+
+set_global_assignment -name FAMILY "Cyclone V"
+set_global_assignment -name DEVICE 5CSEMA5F31C6
+set_global_assignment -name TOP_LEVEL_ENTITY conv1_op
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION 16.1.0
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "09:21:43  SEPTEMBER 08, 2021"
+set_global_assignment -name LAST_QUARTUS_VERSION "16.1.0 Lite Edition"
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 256
+set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim (VHDL)"
+set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation
+set_global_assignment -name EDA_OUTPUT_DATA_FORMAT VHDL -section_id eda_simulation
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name VHDL_FILE io_buffer.vhd
+set_global_assignment -name SOURCE_FILE nucleo_convolucional_tb
+set_global_assignment -name VHDL_FILE nucleo_convolucional.vhd
+set_global_assignment -name VHDL_FILE multiplicador_conv.vhd
+set_global_assignment -name VHDL_FILE pmul8.vhd
+set_global_assignment -name VHDL_FILE arvore_soma_conv.vhd
+set_global_assignment -name VHDL_FILE add32.vhd
+set_global_assignment -name VHDL_FILE relu.vhd
+set_global_assignment -name VHDL_FILE arvore_comparadores.vhd
+set_global_assignment -name VHDL_FILE max_pooling.vhd
+set_global_assignment -name VHDL_FILE neuronio.vhd
+set_global_assignment -name VHDL_FILE over_under_flow_checker.vhd
+set_global_assignment -name VHDL_FILE add1.vhd
+set_global_assignment -name VHDL_FILE add32_tb.vhd
+set_global_assignment -name VHDL_FILE mux_35_x_1.vhd
+set_global_assignment -name VHDL_FILE demux_1_x_35.vhd
+set_global_assignment -name VHDL_FILE registrador.vhd
+set_global_assignment -name VHDL_FILE reg_array.vhd
+set_global_assignment -name VHDL_FILE types_pkg.vhd
+set_global_assignment -name QIP_FILE softmax_enax_mem.qip
+set_global_assignment -name VHDL_FILE divisor.vhd
+set_global_assignment -name VHDL_FILE softmax_op.vhd
+set_global_assignment -name VHDL_FILE softmax_crt.vhd
+set_global_assignment -name VHDL_FILE softmax_decoder_reg.vhd
+set_global_assignment -name VHDL_FILE softmax_top.vhd
+set_global_assignment -name QIP_FILE generic_ram.qip
+set_global_assignment -name VHDL_FILE inst_test_ram.vhd
+set_global_assignment -name VHDL_FILE rebuffer.vhd
+set_global_assignment -name VHDL_FILE rebuffer_tb.vhd
+set_global_assignment -name VHDL_FILE conv1.vhd
+set_global_assignment -name VHDL_FILE conv1_op.vhd
+set_global_assignment -name VHDL_FILE fpga_design.vhd
+set_global_assignment -name VHDL_FILE conv1_crt.vhd
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
