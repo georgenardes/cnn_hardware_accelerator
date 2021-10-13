@@ -21,11 +21,12 @@ entity conv1_crt is
     C : integer := 3; -- iFMAP Chanels (filter Chanels also)
     R : integer := 3; -- filter Height 
     S : integer := 3; -- filter Width     
-    M : integer := 6; -- Number of filters (oFMAP Chanels also)
-    P : integer := 1; -- padding (1 - same; 0 - valid)
+    M : integer := 6; -- Number of filters (oFMAP Chanels also)    
     DATA_WIDTH : integer := 8;
     ADDR_WIDTH : integer := 10;    
-    OFFSET_ADDR : std_logic_vector := "0000011000" -- 24dec
+    OFFSET_ADDR : std_logic_vector := "0000011000"; -- 24dec
+    LAST_ROW : std_logic_vector := "10000"; -- 32 por conta do padd
+    LAST_COL : std_logic_vector := "1100"   -- 24 por conta do padd
   );
 
   port (
@@ -78,16 +79,17 @@ end conv1_crt;
 
 architecture arch of conv1_crt is
   type t_STATE is (
-    s0, -- IDLE
-    s1, -- LOAD pixels
-    s2, -- registra saida dos blocos NCs
-    s3, -- Acumula sequencialmente os canais de um filtro
-    s4, -- escreve nos blocos de saída o resultado da acumulação
-    s5, -- realiza deslocamento à direita
-    s6, -- verifica fim de linha (ultima coluna)
-    s7, -- realiza deslocamento a baixo
-    s8, -- verifica fim de coluna (ultima linha)    
-    s9 -- fim
+    s_IDLE, -- IDLE
+    s_LOAD_PIX, -- LOAD pixels
+    s_ADD_PADD, -- adiciona borda (caso seja a configuracao da camada)
+    s_REG_OUT_NC, -- registra saida dos blocos NCs
+    s_ACC_FIL_CH, -- Acumula sequencialmente os canais de um filtro
+    s_WRITE_OUT, -- escreve nos blocos de saída o resultado da acumulação
+    s_RIGHT_SHIFT, -- realiza deslocamento à direita
+    s_LAST_COL, -- verifica fim de linha (ultima coluna)
+    s_DOWN_SHIFT, -- realiza deslocamento a baixo
+    s_LAST_ROW, -- verifica fim de coluna (ultima linha)    
+    s_END -- fim
   );
   signal r_STATE : t_STATE; -- state register
   signal w_NEXT : t_STATE; -- next state    
@@ -138,7 +140,7 @@ begin
   p_STATE : process (i_CLK, i_CLR)
   begin
     if (i_CLR = '1') then
-      r_STATE <= s0;      --initial state
+      r_STATE <= s_IDLE;      --initial state
     elsif (rising_edge(i_CLK)) then
       r_STATE <= w_NEXT;  --next state
     end if;
@@ -147,58 +149,61 @@ begin
   p_NEXT : process (r_STATE, i_GO, r_CNT_REG_PIX, r_NC_O_SEL,  w_END_COL, w_END_ROW)
   begin
     case (r_STATE) is
-      when s0 => -- aguarda sinal go
+      when s_IDLE => -- aguarda sinal go
         if (i_GO = '1') then
-          w_NEXT <= s1;
+          w_NEXT <= s_LOAD_PIX;
         else
-          w_NEXT <= s0;
+          w_NEXT <= s_IDLE;
         end if;
 
-      when s1 => -- carrega registradores de entrada
-        if (r_CNT_REG_PIX = "11") then
-          w_NEXT <= s2;
+      when s_LOAD_PIX => -- carrega registradores de entrada (apenas os 3 pixels iniciais
+        if (r_CNT_REG_PIX < "11") then
+          w_NEXT <= s_LOAD_PIX;
         else
-          w_NEXT <= s1;
+          w_NEXT <= s_REG_OUT_NC;
         end if;
-        
-      when s2 => -- registra saida
-        w_NEXT <= s3;
+      
+      when s_ADD_PADD =>
+        w_NEXT <= s_LOAD_PIX;
+    
+      when s_REG_OUT_NC => -- registra saida
+        w_NEXT <= s_ACC_FIL_CH;
 
-      when s3 => -- acumula canais de um filtro
+      when s_ACC_FIL_CH => -- acumula canais de um filtro
         if (r_NC_O_SEL = "111") then -- 7 == fim acumulador
-          w_NEXT <= s4;
+          w_NEXT <= s_WRITE_OUT;
         else 
-          w_NEXT <= s3;
+          w_NEXT <= s_ACC_FIL_CH;
         end if;
         
-      when s4 => -- salva no bloco de saida
-        w_NEXT <= s5;
+      when s_WRITE_OUT => -- salva no bloco de saida
+        w_NEXT <= s_RIGHT_SHIFT;
         
-      when s5 =>  -- deslocamento à direita
-        w_NEXT <= s6;
+      when s_RIGHT_SHIFT =>  -- deslocamento à direita
+        w_NEXT <= s_LAST_COL;
       
-      when s6 =>  -- verifica fim colunas
+      when s_LAST_COL =>  -- verifica fim colunas
         if (w_END_COL = '1') then 
-          w_NEXT <= s7;
+          w_NEXT <= s_DOWN_SHIFT;
         else
-          w_NEXT <= s2;
+          w_NEXT <= s_REG_OUT_NC;
         end if;
         
-      when s7 =>  -- deslocamento à baixo
-        w_NEXT <= s8;
+      when s_DOWN_SHIFT =>  -- deslocamento à baixo
+        w_NEXT <= s_LAST_ROW;
         
-      when s8 =>  -- verifica fim linhas
+      when s_LAST_ROW =>  -- verifica fim linhas
         if (w_END_ROW = '1') then 
-          w_NEXT <= s9;        
+          w_NEXT <= s_END;        
         else
-          w_NEXT <= s1;
+          w_NEXT <= s_LOAD_PIX;
         end if;
       
-      when s9 =>  -- fim
-        w_NEXT <= s0;      
+      when s_END =>  -- fim
+        w_NEXT <= s_IDLE;      
 
       when others =>
-        w_NEXT <= s0;
+        w_NEXT <= s_IDLE;
         
     end case;
   end process;
@@ -208,7 +213,7 @@ begin
   -----------------------------------------------------------------------
   -- sinais para buffers de entrada
   ---------------------------------  
-  w_INC_IN_ADDR <= '1' when (r_STATE = s1) else '0';
+  w_INC_IN_ADDR <= '1' when (r_STATE = s_LOAD_PIX) else '0';
   
   -- contador de endereco
   r_IN_READ_ADDR <= (others => '0') when (i_CLR = '1' or r_IN_READ_ADDR = OFFSET_ADDR) else -- talvez provoque instabilidade
@@ -216,6 +221,8 @@ begin
                     r_IN_READ_ADDR;  
   
     
+  -- OBS.: como offset_addr é diferente de 1 os primeiros bits serão sempre 0
+  -- log de output diz que foi inferido latch, porém o RTL não apresenta latch
   -- offset para endereco de buffer de entrada
   r_ADDR0_OFF <= (others => '0') when (i_CLR = '1') else
                   r_ADDR0_OFF + OFFSET_ADDR when (rising_edge(i_CLK) and r_ROW_SEL = "00") else 
@@ -238,40 +245,40 @@ begin
   -- sinais para nucleos convolucionais
   ---------------------------------    
   -- seleciona configuração de conexao entre buffer e registradores de deslocamento
-  r_ROW_SEL <= (others => '0') when (i_CLR = '1' or r_STATE = s0 or r_ROW_SEL = "11") else 
-                r_ROW_SEL + "01" when (rising_edge(i_CLK) and r_STATE = s8) else
+  r_ROW_SEL <= (others => '0') when (i_CLR = '1' or r_STATE = s_IDLE or r_ROW_SEL = "11") else 
+                r_ROW_SEL + "01" when (rising_edge(i_CLK) and r_STATE = s_LAST_ROW) else
                 r_ROW_SEL;
   o_ROW_SEL <= r_ROW_SEL;
   
   -- habilita sinal para incrementar contador de deslocamento dos 3 pixels iniciais
-  w_INC_CNT_REG_PIX <= '1' when (r_STATE = s1) else '0';
-  r_CNT_REG_PIX <= (others => '0') when (i_CLR = '1' or r_STATE = s0) else
+  w_INC_CNT_REG_PIX <= '1' when (r_STATE = s_LOAD_PIX) else '0';
+  r_CNT_REG_PIX <= (others => '0') when (i_CLR = '1' or r_STATE = s_IDLE) else
                    r_CNT_REG_PIX + "01" when (rising_edge(i_CLK) and w_INC_CNT_REG_PIX = '1') else 
                    r_CNT_REG_PIX;  
-  o_PIX_SHIFT_ENA <= '1' when (r_STATE = s1) else '0';
+  o_PIX_SHIFT_ENA <= '1' when (r_STATE = s_LOAD_PIX) else '0';
   ---------------------------------
   
   ---------------------------------
   -- sinais para multiplexadores
   ---------------------------------
   -- seleciona saida de NCs  
-  r_NC_O_SEL <= (others => '0') when (i_CLR = '1' or r_STATE = s0) else 
-                 r_NC_O_SEL + "001" when (rising_edge(i_CLK) and r_STATE = s3) else 
+  r_NC_O_SEL <= (others => '0') when (i_CLR = '1' or r_STATE = s_IDLE) else 
+                 r_NC_O_SEL + "001" when (rising_edge(i_CLK) and r_STATE = s_ACC_FIL_CH) else 
                  r_NC_O_SEL;  
   o_NC_O_SEL <= r_NC_O_SEL;
   -- habilita acumulador de pixels de saida dos NCs
-  o_ACC_ENA  <= '1' when (r_STATE = s3) else '0';
+  o_ACC_ENA  <= '1' when (r_STATE = s_ACC_FIL_CH) else '0';
   ---------------------------------
   
   ---------------------------------
   -- sinais para buffers de saida
   ---------------------------------    
   -- habilita escrita buffer de saida
-  o_OUT_WRITE_ENA <= '1' when (r_STATE = s5) else '0';
+  o_OUT_WRITE_ENA <= '1' when (r_STATE = s_RIGHT_SHIFT) else '0';
   -- incrementa endereco de saida
-  o_OUT_INC_ADDR  <= '1' when (r_STATE = s5) else '0';
+  o_OUT_INC_ADDR  <= '1' when (r_STATE = s_RIGHT_SHIFT) else '0';
   -- reset endreco de saida
-  o_OUT_CLR_ADDR <= '1' when (r_STATE = s0) else '0';
+  o_OUT_CLR_ADDR <= '1' when (r_STATE = s_IDLE) else '0';
   ---------------------------------
   
   
@@ -280,13 +287,13 @@ begin
   ---------------------------------
   -- contador de colunas
   -- default 3 colunas pois inicia a contagem a partir das 3 primeiras colunas
-  w_INC_COL_CNT <= '1' when (r_STATE = s5) else '0';
-  r_CNT_COL <=  "00011" when (i_CLR = '1' or r_STATE = s0 or r_STATE = s7) else 
+  w_INC_COL_CNT <= '1' when (r_STATE = s_RIGHT_SHIFT) else '0';
+  r_CNT_COL <=  "00011" when (i_CLR = '1' or r_STATE = s_IDLE or r_STATE = s_DOWN_SHIFT) else 
                  r_CNT_COL + "00001" when (rising_edge(i_CLK) and w_INC_COL_CNT = '1') else 
                  r_CNT_COL;    
   
   -- fim coluna quando contador = numero de coluna (24)
-  w_END_COL <= '1' when (r_CNT_COL = "11000") else '0';  
+  w_END_COL <= '1' when (r_CNT_COL = LAST_COL) else '0';  
   ---------------------------------
   
   ---------------------------------
@@ -294,17 +301,17 @@ begin
   ---------------------------------
   -- contador de linhas
   -- default 3 linhas pois inicia a contagem a partir das 3 primeiras linhas 
-  w_INC_ROW_CNT <= '1' when (r_STATE = s7) else '0';
-  r_CNT_ROW <= "000011" when (i_CLR = '1' or r_STATE = s0) else 
+  w_INC_ROW_CNT <= '1' when (r_STATE = s_DOWN_SHIFT) else '0';
+  r_CNT_ROW <= "000011" when (i_CLR = '1' or r_STATE = s_IDLE) else 
                  r_CNT_ROW + "000001" when (rising_edge(i_CLK) and w_INC_ROW_CNT = '1') else 
                  r_CNT_ROW;
   
   -- fim linha quando contador = numero de linha (32)
-  w_END_ROW <= '1' when (r_CNT_ROW = "100000") else '0';  
+  w_END_ROW <= '1' when (r_CNT_ROW = LAST_ROW) else '0';  
   ---------------------------------
   
   
   -- sinaliza fim maq estado
-  o_READY <= '1' when (r_STATE = s9) else '0';
+  o_READY <= '1' when (r_STATE = s_END) else '0';
   
 end arch;

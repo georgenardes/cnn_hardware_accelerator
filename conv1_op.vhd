@@ -82,8 +82,7 @@ entity conv1_op is
     C : integer := 3;  -- iFMAP Chanels (filter Chanels also)
     R : integer := 3; -- filter Height 
     S : integer := 3; -- filter Width     
-    M : integer := 6; -- Number of filters (oFMAP Chanels also)
-    P : integer := 1; -- padding (1 - same; 0 - valid)
+    M : integer := 6; -- Number of filters (oFMAP Chanels also)    
     DATA_WIDTH : integer := 8;
     ADDR_WIDTH : integer := 10
   );

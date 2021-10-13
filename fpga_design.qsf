@@ -39,7 +39,7 @@
 
 set_global_assignment -name FAMILY "Cyclone V"
 set_global_assignment -name DEVICE 5CSEMA5F31C6
-set_global_assignment -name TOP_LEVEL_ENTITY conv1_op
+set_global_assignment -name TOP_LEVEL_ENTITY conv1
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 16.1.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "09:21:43  SEPTEMBER 08, 2021"
 set_global_assignment -name LAST_QUARTUS_VERSION "16.1.0 Lite Edition"
@@ -63,7 +63,6 @@ set_global_assignment -name VHDL_FILE relu.vhd
 set_global_assignment -name VHDL_FILE arvore_comparadores.vhd
 set_global_assignment -name VHDL_FILE max_pooling.vhd
 set_global_assignment -name VHDL_FILE neuronio.vhd
-set_global_assignment -name VHDL_FILE over_under_flow_checker.vhd
 set_global_assignment -name VHDL_FILE add1.vhd
 set_global_assignment -name VHDL_FILE add32_tb.vhd
 set_global_assignment -name VHDL_FILE mux_35_x_1.vhd
@@ -85,6 +84,7 @@ set_global_assignment -name VHDL_FILE conv1.vhd
 set_global_assignment -name VHDL_FILE conv1_op.vhd
 set_global_assignment -name VHDL_FILE fpga_design.vhd
 set_global_assignment -name VHDL_FILE conv1_crt.vhd
+set_global_assignment -name VHDL_FILE rebuffer2.vhd
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
