@@ -15,7 +15,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity arvore_soma_conv is
-  generic (i_DATA_WIDTH : INTEGER := 16;           
+  generic (i_DATA_WIDTH : INTEGER := 32;           
            o_DATA_WIDTH : INTEGER := 32);
 
   port (
@@ -77,7 +77,18 @@ begin
   w_ENTRADAS(7)(15 downto 0) <= i_DATA8;
   w_ENTRADAS(8)(15 downto 0) <= i_DATA9;  
   
-
+  -- conversão para 32b considerando bit de sinal
+  w_ENTRADAS(0)(31 downto 16) <= (others => '1') when (i_DATA1 (15) = '1') else (others => '0');
+  w_ENTRADAS(1)(31 downto 16) <= (others => '1') when (i_DATA2 (15) = '1') else (others => '0');
+  w_ENTRADAS(2)(31 downto 16) <= (others => '1') when (i_DATA3 (15) = '1') else (others => '0');
+  w_ENTRADAS(3)(31 downto 16) <= (others => '1') when (i_DATA4 (15) = '1') else (others => '0');
+  w_ENTRADAS(4)(31 downto 16) <= (others => '1') when (i_DATA5 (15) = '1') else (others => '0');
+  w_ENTRADAS(5)(31 downto 16) <= (others => '1') when (i_DATA6 (15) = '1') else (others => '0');
+  w_ENTRADAS(6)(31 downto 16) <= (others => '1') when (i_DATA7 (15) = '1') else (others => '0');
+  w_ENTRADAS(7)(31 downto 16) <= (others => '1') when (i_DATA8 (15) = '1') else (others => '0');
+  w_ENTRADAS(8)(31 downto 16) <= (others => '1') when (i_DATA9 (15) = '1') else (others => '0'); 
+    
+  
   -- primeira coluna de somadores
   u_ADD1 : add32 port map (
                   a        =>  w_ENTRADAS(0), 

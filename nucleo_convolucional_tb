@@ -24,25 +24,26 @@ architecture arch of nucleo_convolucional_tb is
       w_CONV_OUT : integer := 16;
       o_DATA_WIDTH : integer := 32);
     port (
-      i_CLK           : in  std_logic;
-      i_CLR           : in  std_logic;
+      i_CLK       : in STD_LOGIC;
+    	i_CLR       : in STD_LOGIC;
+    
+    	-- habilita deslocamento dos registradores
+    	i_PIX_SHIFT_ENA : in STD_LOGIC;
+   	 	i_PES_SHIFT_ENA : in STD_LOGIC;    
 
-      -- habilita deslocamento dos registradores
-      i_PIX_SHIFT_ENA : in  std_logic;
-      i_PES_SHIFT_ENA : in  std_logic;
-
-      -- linhas de pixels
-      i_PIX_ROW_1     : in  std_logic_vector (i_DATA_WIDTH - 1 downto 0);
-      i_PIX_ROW_2     : in  std_logic_vector (i_DATA_WIDTH - 1 downto 0);
-      i_PIX_ROW_3     : in  std_logic_vector (i_DATA_WIDTH - 1 downto 0);
-
-      -- linhas de pesos
-      i_PES_ROW_1     : in  std_logic_vector (i_DATA_WIDTH - 1 downto 0);
-      i_PES_ROW_2     : in  std_logic_vector (i_DATA_WIDTH - 1 downto 0);
-      i_PES_ROW_3     : in  std_logic_vector (i_DATA_WIDTH - 1 downto 0);
-
-      -- pixel de saida
-      o_PIX           : out std_logic_vector (o_DATA_WIDTH - 1 downto 0)
+    	-- linhas de pixels
+    	i_PIX_ROW_1 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+    	i_PIX_ROW_2 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+    	i_PIX_ROW_3 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);  
+    
+    	-- habilita escrita em uma das linhas de pesos
+    	i_PES_ROW_SEL : in std_logic_vector (1 downto 0);
+    
+    	-- peso de entrada
+    	i_PES : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+    
+    	-- pixel de saida
+    	o_PIX       : out STD_LOGIC_VECTOR (o_DATA_WIDTH - 1 downto 0)
 
     );
   end component;
@@ -55,7 +56,8 @@ architecture arch of nucleo_convolucional_tb is
 
   -- pixels e pesos de entrada
 	signal w_PIX_ROW_1, w_PIX_ROW_2, w_PIX_ROW_3 : STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
-	signal w_PES_ROW_1, w_PES_ROW_2, w_PES_ROW_3 : STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);  
+	signal w_PES : STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);  
+  signal w_PES_ROW_SEL : std_logic_vector (1 downto 0);
 
 	-- pixel de saida
 	signal w_OUT_PIX : STD_LOGIC_VECTOR (o_DATA_WIDTH - 1 downto 0);  
@@ -74,9 +76,8 @@ begin
     i_PIX_ROW_2     => w_PIX_ROW_2,
     i_PIX_ROW_3     => w_PIX_ROW_3,
     -- linhas de pesos
-    i_PES_ROW_1     => w_PES_ROW_1,
-    i_PES_ROW_2     => w_PES_ROW_2,
-    i_PES_ROW_3     => w_PES_ROW_3,
+    i_PES     			=> w_PES,
+		i_PES_ROW_SEL   => w_PES_ROW_SEL,
     -- pixel de saida
     o_PIX           => w_OUT_PIX
   );

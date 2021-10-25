@@ -24,7 +24,7 @@ entity io_buffer is
   (
     NUM_BLOCKS : integer := 3;    
     DATA_WIDTH : integer := 8;    
-    ADDR_WIDTH : integer := 10
+    ADDR_WIDTH : integer := 10 -- 2**10  enderecos
   );
   
   port 

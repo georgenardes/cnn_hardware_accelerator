@@ -37,13 +37,14 @@ entity nucleo_convolucional is
     -- linhas de pixels
     i_PIX_ROW_1 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
     i_PIX_ROW_2 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
-    i_PIX_ROW_3 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
-
-    -- linhas de pesos
-    i_PES_ROW_1 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
-    i_PES_ROW_2 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
-    i_PES_ROW_3 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
-
+    i_PIX_ROW_3 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);  
+    
+    -- habilita escrita em uma das linhas de pesos
+    i_PES_ROW_SEL : in std_logic_vector (1 downto 0);
+    
+    -- peso de entrada
+    i_PES : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+    
     -- pixel de saida
     o_PIX       : out STD_LOGIC_VECTOR (o_DATA_WIDTH - 1 downto 0)
 
@@ -66,15 +67,34 @@ architecture arch of nucleo_convolucional is
   signal w_PES_ROW_2 : t_MAT := (others =>  ( others => '0'));
   signal w_PES_ROW_3 : t_MAT := (others =>  ( others => '0'));
   
+  
+  -- linhas de pesos
+  signal w_i_PES_ROW_1 : STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+  signal w_i_PES_ROW_2 : STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+  signal w_i_PES_ROW_3 : STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+  
+  
   -- saida dos multiplicadores
   signal w_MULT_OUT : t_MULT_OUT_MAT := (others =>  ( others => '0'));
   
   -- Componentes
+  
+     
+  -------------------------------
+  -------------------------------
+  component demux_1x4 is 
+    PORT (  
+      i_A           : IN  std_logic_vector(7 DOWNTO 0); -- peso
+      i_SEL         : IN  std_logic_vector(1 DOWNTO 0); -- 2 bits para enderecamento entre as 3 linhas
+      o_Q, o_R, o_S : OUT std_logic_vector(7 DOWNTO 0)
+    );
+  end component;  
+  -------------------------------
+    
+  
   component multiplicador_conv is
     generic (i_DATA_WIDTH : INTEGER := 8;
              o_DATA_WIDTH : INTEGER := 16);
-    
-
     port (              
       -- dados de entrada
       i_DATA_1 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
@@ -138,23 +158,37 @@ begin
       end if;
       
       -- desloca registradores de pesos
-      if (i_PES_SHIFT_ENA = '1') then       
+      if (i_PES_SHIFT_ENA = '1' and i_PES_ROW_SEL = "00") then                  
         w_PES_ROW_1(2) <= w_PES_ROW_1(1);
-        w_PES_ROW_2(2) <= w_PES_ROW_2(1);
-        w_PES_ROW_3(2) <= w_PES_ROW_3(1);
-      
         w_PES_ROW_1(1) <= w_PES_ROW_1(0);
+        w_PES_ROW_1(0) <= w_i_PES_ROW_1;
+      end if; 
+      if (i_PES_SHIFT_ENA = '1' and i_PES_ROW_SEL = "01") then       
+        w_PES_ROW_2(2) <= w_PES_ROW_2(1);
         w_PES_ROW_2(1) <= w_PES_ROW_2(0);
+        w_PES_ROW_2(0) <= w_i_PES_ROW_2;
+      end if; 
+      if (i_PES_SHIFT_ENA = '1' and i_PES_ROW_SEL = "10") then               
+        w_PES_ROW_3(2) <= w_PES_ROW_3(1);
         w_PES_ROW_3(1) <= w_PES_ROW_3(0);
-                
-        w_PES_ROW_1(0) <= i_PES_ROW_1;
-        w_PES_ROW_2(0) <= i_PES_ROW_2;
-        w_PES_ROW_3(0) <= i_PES_ROW_3;
+        w_PES_ROW_3(0) <= w_i_PES_ROW_3;      
       end if;      
       
     end if;        
   end process;
   
+  
+  -- demultiplixa peso de entrada para linhas de pesos
+  u_DEMUX_PEX : demux_1x4  
+            port map
+            (  
+              i_A     => i_PES,      
+              i_SEL   => i_PES_ROW_SEL,      
+              o_Q     => w_i_PES_ROW_1, 
+              o_R     => w_i_PES_ROW_2, 
+              o_S     => w_i_PES_ROW_3
+            );
+    
   
   -- multiplicadores
   u_MUL_0 : multiplicador_conv 
