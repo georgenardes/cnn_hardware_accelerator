@@ -5,7 +5,10 @@ USE ieee.std_logic_1164.ALL;
 
 PACKAGE types_pkg IS
   
-  -- tipo entrada conv1
+  -- tipo de entrada rebuff1
+  type t_REBBUF1_IN is array (0 to 2) of STD_LOGIC_VECTOR(7 downto 0);
+  
+  -- tipo entrada conv1/ saida rebuff1
   type t_CONV1_IN is array (0 to 2) of STD_LOGIC_VECTOR(7 downto 0);
   -- tipo saida conv1
   type t_CONV1_OUT is array (0 to 5) of STD_LOGIC_VECTOR(7 downto 0);

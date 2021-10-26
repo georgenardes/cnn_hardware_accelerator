@@ -12,10 +12,11 @@ use work.types_pkg.all;
 entity cnn_top is
   port 
   (
-    i_CLK : in std_logic;
-    i_CLR : in std_logic;
-    i_GO  : in std_logic;
-    o_READY : out std_logic  
+    i_CLK       : in STD_LOGIC;
+    i_CLR       : in STD_LOGIC;
+    i_GO        : in STD_LOGIC;
+    i_LOAD      : in std_logic;
+    o_READY     : out std_logic
   );
 end cnn_top;
 
@@ -36,6 +37,7 @@ architecture arch of cnn_top is
       i_CLK       : in STD_LOGIC;
       i_CLR       : in STD_LOGIC;
       i_GO        : in STD_LOGIC;
+      i_LOAD      : in std_logic;
       o_READY     : out std_logic;
       
       -- sinais para comunicação com rebuffers
@@ -63,11 +65,10 @@ architecture arch of cnn_top is
   
   --------------------------------------------------------
   -- bloco rebuffer
-  component rebuffer2 is
+  component rebuff1 is
     generic (
-      ADDR_WIDTH : integer := 8;
-      DATA_WIDTH : integer := 8;
-      REBUFF_TYPE : integer := 0;
+      ADDR_WIDTH : integer := 10;
+      DATA_WIDTH : integer := 8;    
       NUM_BUFF   : std_logic_vector(1 downto 0) := "11"; -- 3 buffers
       IFMAP_WIDTH : std_logic_vector(5 downto 0) := "100000"; -- 32
       IFMAP_HEIGHT : std_logic_vector(5 downto 0) := "011000"; -- 24
@@ -83,7 +84,8 @@ architecture arch of cnn_top is
       i_GO        : in  std_logic;
 
       -- dado de entrada
-      i_DATA      : in  std_logic_vector (DATA_WIDTH - 1 downto 0);
+      i_DATA      : in  t_REBBUF1_IN;
+      
       -- habilita leitura
       o_READ_ENA  : out std_logic;
       -- endereco a ser lido
@@ -93,9 +95,10 @@ architecture arch of cnn_top is
       -- habilita escrita    
       o_WRITE_ENA : out std_logic;
       -- dado de saida (mesmo q o de entrada)
-      o_DATA      : out std_logic_vector (DATA_WIDTH - 1 downto 0);
+      o_DATA      : out t_CONV1_IN;
       -- linha de buffer selecionada
       o_SEL_BUFF  : out std_logic_vector (1 downto 0);
+      
       o_READY     : out std_logic
     );
   end component;
@@ -118,7 +121,7 @@ architecture arch of cnn_top is
   --------------- sinais 
   -- buffers de entrada e rebuffer
   -- dado de entrada
-  signal w_REBUFF_IN_DATA      : t_CONV1_IN;
+  signal w_REBUFF_IN_DATA      : t_REBBUF1_IN;
   -- habilita leitura
   signal w_READ_ENA  :  std_logic;
   -- endereco a ser lido
@@ -133,8 +136,36 @@ architecture arch of cnn_top is
   signal w_SEL_BUFF  :  std_logic_vector (1 downto 0);
   signal w_REBUFF_READY     :  std_logic;
   
+    
+  -------- SINAIS CONV1
+  signal w_GO        : STD_LOGIC;
+  signal w_LOAD      : std_logic;
+  signal w_READY     : std_logic;
+  
+  -- sinais para comunicação com rebuffers
+  -- dado de entrada
+  signal w_IN_DATA       : t_CONV1_IN;
+  -- habilita escrita    
+  signal w_IN_WRITE_ENA  :  std_logic;    
+  -- linha de buffer selecionada
+  signal w_IN_SEL_LINE   :  std_logic_vector (1 downto 0); 
+  -- endereco a ser escrito
+  signal w_IN_WRITE_ADDR :  std_logic_vector (ADDR_WIDTH - 1 downto 0);
+  --------------------------------------------------
+  -- habilita leitura buffer de saida
+  signal w_OUT_READ_ENA  :  std_logic;
+  -- endereco de leitura buffer de saida
+  signal w_OUT_READ_ADDR :  std_logic_vector (ADDR_WIDTH - 1 downto 0);
+  --------------------------------------------------
+  
+  -- saida dos buffers de saida
+  signal w_OUT_DATA : t_CONV1_OUT;
+
+  
+  
 begin
   
+  -- imagem de entrada
   u_IMG_CHA_0 : image_chanel
                   generic map ("input_chanel_R.mif")
                   port map (
@@ -143,6 +174,8 @@ begin
                     rden		=> w_READ_ENA,
                     q		    => w_REBUFF_IN_DATA(0)
                   );
+                  
+  -- imagem de entrada
   u_IMG_CHA_1 : image_chanel
                   generic map ("input_chanel_G.mif")
                   port map (
@@ -151,6 +184,7 @@ begin
                     rden		=> w_READ_ENA,
                     q		    => w_REBUFF_IN_DATA(1)
                   );
+  -- imagem de entrada
   u_IMG_CHA_2 : image_chanel
                   generic map ("input_chanel_B.mif")
                   port map (
@@ -161,39 +195,39 @@ begin
                   );
                   
   
-  --u_REBUFF_0 : rebuffer2 
-  --                generic map (
-  --                  ADDR_WIDTH  => 8,
-  --                  DATA_WIDTH  => 8,
-  --                  REBUFF_TYPE => 0,
-  --                  NUM_BUFF     => "11"; -- 3 buffers
-  --                  IFMAP_WIDTH  => "100000"; -- 32
-  --                  IFMAP_HEIGHT => "011000"; -- 24
-  --                  OFMAP_WIDTH  => "100010"; -- 34
-  --                  OFMAP_HEIGHT => "11010"; -- 26
-  --                  PAD_H        => "100001"; -- 33
-  --                  PAD_W        => "011001"; -- 25
-  --                  INPUT_MAX_ADDR => "0000100000" -- 32*#linhas
-  --                );
-  --                port (
-  --                  i_CLK       => i_CLK,
-  --                  i_CLR       => i_CLR,
-  --                  i_GO        => i_GO,
-  --                  i_DATA      => w_REBUFF_IN_DATA(0),
-  --                  o_READ_ENA  => ,
-  --                  o_IN_ADDR   => ,
-  --                  o_OUT_ADDR  => ,
-  --                  o_WRITE_ENA => ,
-  --                  o_DATA      => w_REBUFF_OUT_DATA(0),
-  --                  o_SEL_BUFF  => ,
-  --                  o_READY     => 
-  --                );
+  u_REBUFF_0 : rebuff1 
+                  generic map 
+                  (
+                    ADDR_WIDTH  => ADDR_WIDTH,
+                    DATA_WIDTH  => DATA_WIDTH,                    
+                    NUM_BUFF     => "11", -- 3 buffers
+                    IFMAP_WIDTH  => "100000", -- 32
+                    IFMAP_HEIGHT => "011000", -- 24
+                    OFMAP_WIDTH  => "100010", -- 34
+                    OFMAP_HEIGHT => "11010", -- 26
+                    PAD_H        => "100001", -- 33
+                    PAD_W        => "011001", -- 25
+                    INPUT_MAX_ADDR => "0000100000" -- 32*#linhas
+                  )
+                  port map 
+                  (
+                    i_CLK       => i_CLK,
+                    i_CLR       => i_CLR,
+                    i_GO        => i_GO,
+                    i_DATA      => w_REBUFF_IN_DATA,
+                    o_READ_ENA  => w_READ_ENA,
+                    o_IN_ADDR   => w_IN_ADDR,
+                    o_OUT_ADDR  => w_OUT_ADDR,
+                    o_WRITE_ENA => w_WRITE_ENA,
+                    o_DATA      => w_REBUFF_OUT_DATA,
+                    o_SEL_BUFF  => w_SEL_BUFF,
+                    o_READY     => w_REBUFF_READY
+                  );
   --
   --u_REBUFF_1 : rebuffer2 
   --                generic map (
   --                  ADDR_WIDTH  => 8,
   --                  DATA_WIDTH  => 8,
-  --                  REBUFF_TYPE => 0,
   --                  NUM_BUFF     => "11"; -- 3 buffers
   --                  IFMAP_WIDTH  => "100000"; -- 32
   --                  IFMAP_HEIGHT => "011000"; -- 24
@@ -221,7 +255,6 @@ begin
   --                generic map (
   --                  ADDR_WIDTH  => 8,
   --                  DATA_WIDTH  => 8,
-  --                  REBUFF_TYPE => 0,
   --                  NUM_BUFF     => "11"; -- 3 buffers
   --                  IFMAP_WIDTH  => "100000"; -- 32
   --                  IFMAP_HEIGHT => "011000"; -- 24
@@ -245,6 +278,33 @@ begin
   --                  o_READY     => 
   --                );
   --
+  
+          
+	u_CONV1 : conv1 
+    generic map
+    (
+      DATA_WIDTH => DATA_WIDTH,
+      ADDR_WIDTH => ADDR_WIDTH
+    )
+    port map
+    (
+      i_CLK           => i_CLK  ,
+      i_CLR           => i_CLR  ,
+      i_GO            => i_GO   ,
+      i_LOAD          => i_LOAD ,
+      o_READY         => o_READY,
+      i_IN_DATA       => w_REBUFF_OUT_DATA,
+      i_IN_WRITE_ENA  => w_WRITE_ENA,
+      i_IN_SEL_LINE   => w_SEL_BUFF,
+      i_IN_WRITE_ADDR => w_OUT_ADDR,
+      i_OUT_READ_ENA  => w_OUT_READ_ENA  ,
+      i_OUT_READ_ADDR => w_OUT_READ_ADDR ,
+      o_OUT_DATA      => w_OUT_DATA
+		);
+  
+  
+  
+  
 end arch;
   
 
