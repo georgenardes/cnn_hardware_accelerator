@@ -35,6 +35,6 @@ architecture arch of relu is
 begin
   
   -- atribui 0 aos numeros negativos, identificados pelo oitavo bit em 1
-  o_PIX <= "00000000" when (i_PIX(DATA_WIDTH - 1) = '1') else i_PIX;
+  o_PIX <= i_PIX; -- "00000000" when (i_PIX(DATA_WIDTH - 1) = '1') else i_PIX;
   
 end arch;

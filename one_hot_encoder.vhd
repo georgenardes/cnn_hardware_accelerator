@@ -35,7 +35,7 @@ begin
   begin
     for i in 0 to (DATA_WIDTH**2)-1 loop
       
-      if (i = to_integer(signed(i_DATA)) and i <= NUM) then 
+      if (i = to_integer(unsigned(i_DATA)) and i <= NUM) then 
         o_DATA(i) <= '1'; -- caso valor selecionado
       else
         o_DATA(i) <= '0'; -- caso valor não selecionado

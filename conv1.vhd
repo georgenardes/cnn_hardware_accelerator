@@ -57,12 +57,12 @@ architecture arch of conv1 is
   constant R : integer := 3; -- filter Height 
   constant S : integer := 3; -- filter Width     
   constant M : integer := 6; -- Number of filters (oFMAP Chanels also)      
-  constant OFFSET_ADDR : std_logic_vector := "0000011001"; -- 25dec
+  constant OFFSET_ADDR : std_logic_vector := "0000011010"; -- 25dec
   constant NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
   constant LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
   constant LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
-  constant LAST_ROW : std_logic_vector := "100001"; -- 34 (0 a 33 = 34 pixels) (2 pixels de pad)
-  constant LAST_COL : std_logic_vector := "11001";   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
+  constant LAST_ROW : std_logic_vector := "100010"; -- 34 (0 a 33 = 34 pixels) (2 pixels de pad)
+  constant LAST_COL : std_logic_vector := "11010";   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
   
 
   -- controle 
@@ -77,12 +77,12 @@ architecture arch of conv1 is
       M : integer := 6; -- Number of filters (oFMAP Chanels also)    
       DATA_WIDTH : integer := 8;
       ADDR_WIDTH : integer := 10;    
-      OFFSET_ADDR : std_logic_vector := "0000011001"; -- 25dec
+      OFFSET_ADDR : std_logic_vector := "0000011010"; -- 26
       NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
       LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
       LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
-      LAST_ROW : std_logic_vector := "100001"; -- 34 (0 a 33 = 34 pixels) (pixels de pad)
-      LAST_COL : std_logic_vector := "11001"   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
+      LAST_ROW : std_logic_vector := "100010"; -- 34 (0 a 33 = 34 pixels) (pixels de pad)
+      LAST_COL : std_logic_vector := "11010"   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
     );
 
     port (

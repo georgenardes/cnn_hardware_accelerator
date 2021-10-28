@@ -13,7 +13,7 @@ package conv1_pkg IS
   constant c_NC       : integer := 5; -- number of bits to address NCs 
   
   type t_ARRAY_SCALE_SHIFT is array (0 to c_CONV1_M-1) of integer;
-  constant c_SCALE_SHIFT : t_ARRAY_SCALE_SHIFT := (10, 9, 8, 9, 9, 10); --num bits to shift
+  constant c_SCALE_SHIFT : t_ARRAY_SCALE_SHIFT := (8, 8, 7, 8, 8, 9); --num bits to shift
   
   -- tipo para saida dos NC
   type t_NC_O_VET is array (0 to c_CONV1_NC - 1) of STD_LOGIC_VECTOR(c_CONV1_O_DATA_WIDTH-1 downto 0);    

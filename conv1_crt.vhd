@@ -24,12 +24,12 @@ entity conv1_crt is
     M : integer := 6; -- Number of filters (oFMAP Chanels also)    
     DATA_WIDTH : integer := 8;
     ADDR_WIDTH : integer := 10;    
-    OFFSET_ADDR : std_logic_vector := "0000011001"; -- 25dec
+    OFFSET_ADDR : std_logic_vector := "0000011010"; -- 26
     NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
     LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
     LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
-    LAST_ROW : std_logic_vector := "100001"; -- 34 (0 a 33 = 34 pixels) (pixels de pad)
-    LAST_COL : std_logic_vector := "11001"   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
+    LAST_ROW : std_logic_vector := "100010"; -- 34 (0 a 33 = 34 pixels) (pixels de pad)
+    LAST_COL : std_logic_vector := "11010"   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
   );
 
   port (
@@ -163,9 +163,6 @@ architecture arch of conv1_crt is
   signal w_NC_O_SEL_INC : std_logic; 
   signal w_NC_O_SEL_RST : std_logic;
   
-  -- habilita acumulador de pixels de saida dos NCs
-  signal w_ACC_ENA  : std_logic;
-  
   -- seleciona configuração de conexao entre buffer e registradores de deslocamento
   signal r_ROW_SEL : std_logic_vector(1 downto 0); 
   signal W_ROW_SEL_RST : std_logic;
@@ -249,7 +246,7 @@ begin
         end if;
       
       when s_PES_VERIFY_ADDR => -- verifica endereco de pesos
-        if (r_PES_ADDR < LAST_PES) then 
+        if (r_PES_ADDR <= LAST_PES) then 
           w_NEXT <= s_PES_READ_ENA;
         else
           w_NEXT <= s_BIAS_VERIFY_ADDR;
@@ -266,7 +263,7 @@ begin
         w_NEXT <= s_PES_VERIFY_ADDR;
         
       when s_BIAS_VERIFY_ADDR => -- verifica endereco de BIAS
-        if (r_BIAS_ADDR < LAST_BIAS) then 
+        if (r_BIAS_ADDR <= LAST_BIAS) then 
           w_NEXT <= s_BIAS_READ_ENA;
         else
           w_NEXT <= s_IDLE;
@@ -486,7 +483,7 @@ begin
                 i_CLK       => i_CLK,
                 i_RESET     => w_RST_COL_CNT,
                 i_INC       => w_INC_COL_CNT,
-                i_RESET_VAL => "00011",
+                i_RESET_VAL => "00010",
                 o_Q         => r_CNT_COL
               );     
   
@@ -508,7 +505,7 @@ begin
                 i_CLK       => i_CLK,
                 i_RESET     => w_RST_ROW_CNT,
                 i_INC       => w_INC_ROW_CNT,
-                i_RESET_VAL => "000011",
+                i_RESET_VAL => "000010",
                 o_Q         => r_CNT_ROW
               );         
   
