@@ -42,7 +42,7 @@ architecture arch of conv1_tb is
       -- habilita leitura buffer de saida
       i_OUT_READ_ENA  : in std_logic;
       -- endereco de leitura buffer de saida
-      i_OUT_READ_ADDR : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
+      i_OUT_READ_ADDR : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
       --------------------------------------------------
       
       -- saida dos buffers de saida
@@ -75,7 +75,7 @@ architecture arch of conv1_tb is
   -- habilita leitura buffer de saida
   signal w_OUT_READ_ENA  :  std_logic;
   -- endereco de leitura buffer de saida
-  signal w_OUT_READ_ADDR :  std_logic_vector (ADDR_WIDTH - 1 downto 0);
+  signal w_OUT_READ_ADDR :  std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
   --------------------------------------------------
   
   -- saida dos buffers de saida

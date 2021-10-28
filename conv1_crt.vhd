@@ -117,7 +117,9 @@ architecture arch of conv1_crt is
     s_BIAS_WRITE_ENA, -- habilita escrita BIAS
     s_BIAS_INC_ADDR, -- incrementa endereco de BIAS
     
-    s_LOAD_PIX, -- LOAD pixels    
+    s_LOAD_PIX,   -- carrega pixels    
+    s_REG_PIX,  -- registra pixels
+    
     s_REG_OUT_NC, -- registra saida dos blocos NCs
     s_ACC_FIL_CH, -- Acumula sequencialmente os canais de um filtro
     s_WRITE_OUT, -- escreve nos blocos de saída o resultado da acumulação
@@ -234,7 +236,7 @@ begin
   end process;
     
 
-  p_NEXT : process (r_STATE, i_GO, r_CNT_REG_PIX, r_NC_O_SEL,  w_END_COL, w_END_ROW)
+  p_NEXT : process (r_STATE, i_GO, i_LOAD, r_PES_ADDR, r_BIAS_ADDR, r_CNT_REG_PIX, r_NC_O_SEL,  w_END_COL, w_END_ROW)
   begin
     case (r_STATE) is
       when s_IDLE => -- aguarda sinal go
@@ -278,8 +280,11 @@ begin
             
       when s_BIAS_INC_ADDR => -- incrementa contgador BIAS
         w_NEXT <= s_BIAS_VERIFY_ADDR;
-                   
-      when s_LOAD_PIX => -- carrega registradores de entrada (apenas os 3 pixels iniciais
+      
+      when s_LOAD_PIX => -- habilita leitura pixel de entrada
+        w_NEXT <= s_REG_PIX;
+      
+      when s_REG_PIX => -- registra pixel de entrada
         if (r_CNT_REG_PIX = "11") then
           w_NEXT <= s_REG_OUT_NC;
         else
@@ -427,7 +432,7 @@ begin
                 o_Q         => r_CNT_REG_PIX
               );   
     
-  o_PIX_SHIFT_ENA <= '1' when (r_STATE = s_LOAD_PIX or r_STATE = s_RIGHT_SHIFT) else '0';
+  o_PIX_SHIFT_ENA <= '1' when (r_STATE = s_REG_PIX or r_STATE = s_RIGHT_SHIFT) else '0';
   ---------------------------------
   
   ---------------------------------

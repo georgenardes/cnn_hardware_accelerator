@@ -41,7 +41,7 @@ entity conv1 is
     -- habilita leitura buffer de saida
     i_OUT_READ_ENA  : in std_logic;
     -- endereco de leitura buffer de saida
-    i_OUT_READ_ADDR : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
+    i_OUT_READ_ADDR : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
     --------------------------------------------------
     
     -- saida dos buffers de saida

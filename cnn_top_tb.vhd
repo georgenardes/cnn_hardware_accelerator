@@ -61,24 +61,30 @@ begin
   
   p_TEST : process
 	begin
+
+		w_GO <= '0';
+		w_LOAD <= '0';
+
 	  --------------------------
 		w_CLR <= '1'; -- clear 
 		wait for 2 * c_CLK_PERIOD;
-		w_CLR <= '0'; -- clear 
+		w_CLR <= '0'; -- clear
+		wait for c_CLK_PERIOD; 
 		---------------------------
 
-		w_GO <= '0';
+    -- carrega pesos
 		w_LOAD <= '1';
 		wait for c_CLK_PERIOD;
 		w_LOAD <= '0';
-
 		wait for 750*c_CLK_PERIOD;
+		-------------------
 
-		-- espera um ciclo de clock				
+		-- inicia processamento
 		w_GO <= '1';
 		wait for c_CLK_PERIOD;
 		w_GO <= '0';		
- 		
+ 		--------------------
+
     wait until w_READY = '1';
 
     -- TEST DONE

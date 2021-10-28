@@ -29,8 +29,9 @@ architecture arch of cnn_top is
   component conv1 is
     generic 
     (
-      DATA_WIDTH : integer := 8;
-      ADDR_WIDTH : integer := 10
+      ADDR_WIDTH : integer := 10; 
+      DATA_WIDTH : integer := 8
+      
     );
     port 
     (
@@ -69,14 +70,13 @@ architecture arch of cnn_top is
     generic (
       ADDR_WIDTH : integer := 10;
       DATA_WIDTH : integer := 8;    
-      NUM_BUFF   : std_logic_vector(1 downto 0) := "11"; -- 3 buffers
-      IFMAP_WIDTH : std_logic_vector(5 downto 0) := "100000"; -- 32
-      IFMAP_HEIGHT : std_logic_vector(5 downto 0) := "011000"; -- 24
-      OFMAP_WIDTH : std_logic_vector(5 downto 0) := "100010"; -- 34
-      OFMAP_HEIGHT : std_logic_vector(4 downto 0) := "11010"; -- 26
-      PAD_H : std_logic_vector(5 downto 0) := "100001"; -- 33
-      PAD_W : std_logic_vector(5 downto 0) := "011001"; -- 25
-      INPUT_MAX_ADDR : std_logic_vector(9 downto 0) := "0000100000" -- 32*#linhas
+      NUM_BUFF   : std_logic_vector(1 downto 0)   := "11";      -- 3 buffers
+      IFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011000";  -- 24
+      IFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100000";  -- 32
+      OFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011010";  -- 26
+      OFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100010";  -- 34
+      PAD_H : std_logic_vector(5 downto 0)        := "100001";  -- 33 (indice para adicionar pad linha de baixo)
+      PAD_W : std_logic_vector(5 downto 0)        := "011001"   -- 25 (indice para adicionar pad coluna da direita)
     );
     port (
       i_CLK       : in  std_logic;
@@ -97,7 +97,7 @@ architecture arch of cnn_top is
       -- dado de saida (mesmo q o de entrada)
       o_DATA      : out t_CONV1_IN;
       -- linha de buffer selecionada
-      o_SEL_BUFF  : out std_logic_vector (1 downto 0);
+      o_SEL_BUFF_LINE  : out std_logic_vector (1 downto 0);
       
       o_READY     : out std_logic
     );
@@ -155,7 +155,7 @@ architecture arch of cnn_top is
   -- habilita leitura buffer de saida
   signal w_OUT_READ_ENA  :  std_logic;
   -- endereco de leitura buffer de saida
-  signal w_OUT_READ_ADDR :  std_logic_vector (ADDR_WIDTH - 1 downto 0);
+  signal w_OUT_READ_ADDR :  std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
   --------------------------------------------------
   
   -- saida dos buffers de saida
@@ -198,16 +198,15 @@ begin
   u_REBUFF_0 : rebuff1 
                   generic map 
                   (
-                    ADDR_WIDTH  => ADDR_WIDTH,
-                    DATA_WIDTH  => DATA_WIDTH,                    
-                    NUM_BUFF     => "11", -- 3 buffers
-                    IFMAP_WIDTH  => "100000", -- 32
-                    IFMAP_HEIGHT => "011000", -- 24
-                    OFMAP_WIDTH  => "100010", -- 34
-                    OFMAP_HEIGHT => "11010", -- 26
-                    PAD_H        => "100001", -- 33
-                    PAD_W        => "011001", -- 25
-                    INPUT_MAX_ADDR => "0000100000" -- 32*#linhas
+                    ADDR_WIDTH    => ADDR_WIDTH ,
+                    DATA_WIDTH    => DATA_WIDTH ,  
+                    NUM_BUFF      => "11"    , -- 3 buffers
+                    IFMAP_WIDTH   => "011000", -- 24
+                    IFMAP_HEIGHT  => "100000", -- 32
+                    OFMAP_WIDTH   => "011010", -- 26
+                    OFMAP_HEIGHT  => "100010", -- 34
+                    PAD_H         => "100001", -- 33 (indice para adicionar pad linha de baixo)
+                    PAD_W         => "011001"  -- 25 (indice para adicionar pad coluna da direita)
                   )
                   port map 
                   (
@@ -220,66 +219,10 @@ begin
                     o_OUT_ADDR  => w_OUT_ADDR,
                     o_WRITE_ENA => w_WRITE_ENA,
                     o_DATA      => w_REBUFF_OUT_DATA,
-                    o_SEL_BUFF  => w_SEL_BUFF,
+                    o_SEL_BUFF_LINE  => w_IN_SEL_LINE,
                     o_READY     => w_REBUFF_READY
                   );
-  --
-  --u_REBUFF_1 : rebuffer2 
-  --                generic map (
-  --                  ADDR_WIDTH  => 8,
-  --                  DATA_WIDTH  => 8,
-  --                  NUM_BUFF     => "11"; -- 3 buffers
-  --                  IFMAP_WIDTH  => "100000"; -- 32
-  --                  IFMAP_HEIGHT => "011000"; -- 24
-  --                  OFMAP_WIDTH  => "100010"; -- 34
-  --                  OFMAP_HEIGHT => "11010"; -- 26
-  --                  PAD_H        => "100001"; -- 33
-  --                  PAD_W        => "011001"; -- 25
-  --                  INPUT_MAX_ADDR => "0000100000" -- 32*#linhas
-  --                );
-  --                port (
-  --                  i_CLK       => i_CLK,
-  --                  i_CLR       => i_CLR,
-  --                  i_GO        => i_GO,
-  --                  i_DATA      => w_REBUFF_IN_DATA(1),
-  --                  o_READ_ENA  => ,
-  --                  o_IN_ADDR   => ,
-  --                  o_OUT_ADDR  => ,
-  --                  o_WRITE_ENA => ,
-  --                  o_DATA      => w_REBUFF_OUT_DATA(1),
-  --                  o_SEL_BUFF  => ,
-  --                  o_READY     => 
-  --                );
-  --
-  --u_REBUFF_2 : rebuffer2 
-  --                generic map (
-  --                  ADDR_WIDTH  => 8,
-  --                  DATA_WIDTH  => 8,
-  --                  NUM_BUFF     => "11"; -- 3 buffers
-  --                  IFMAP_WIDTH  => "100000"; -- 32
-  --                  IFMAP_HEIGHT => "011000"; -- 24
-  --                  OFMAP_WIDTH  => "100010"; -- 34
-  --                  OFMAP_HEIGHT => "11010"; -- 26
-  --                  PAD_H        => "100001"; -- 33
-  --                  PAD_W        => "011001"; -- 25
-  --                  INPUT_MAX_ADDR => "0000100000" -- 32*#linhas
-  --                );
-  --                port (
-  --                  i_CLK       => i_CLK,
-  --                  i_CLR       => i_CLR,
-  --                  i_GO        => i_GO,
-  --                  i_DATA      => w_REBUFF_IN_DATA(2),
-  --                  o_READ_ENA  => ,
-  --                  o_IN_ADDR   => ,
-  --                  o_OUT_ADDR  => ,
-  --                  o_WRITE_ENA => ,
-  --                  o_DATA      => w_REBUFF_OUT_DATA(2),
-  --                  o_SEL_BUFF  => ,
-  --                  o_READY     => 
-  --                );
-  --
-  
-          
+ 
 	u_CONV1 : conv1 
     generic map
     (
@@ -290,12 +233,12 @@ begin
     (
       i_CLK           => i_CLK  ,
       i_CLR           => i_CLR  ,
-      i_GO            => i_GO   ,
+      i_GO            => w_REBUFF_READY  ,
       i_LOAD          => i_LOAD ,
       o_READY         => o_READY,
       i_IN_DATA       => w_REBUFF_OUT_DATA,
       i_IN_WRITE_ENA  => w_WRITE_ENA,
-      i_IN_SEL_LINE   => w_SEL_BUFF,
+      i_IN_SEL_LINE   => w_IN_SEL_LINE,
       i_IN_WRITE_ADDR => w_OUT_ADDR,
       i_OUT_READ_ENA  => w_OUT_READ_ENA  ,
       i_OUT_READ_ADDR => w_OUT_READ_ADDR ,

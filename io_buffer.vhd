@@ -45,12 +45,12 @@ entity io_buffer is
     i_SEL_LINE  : in std_logic_vector (1 downto 0);
     
     -- endereco a ser lido
-    i_READ_ADDR0   : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
-    i_READ_ADDR1   : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
-    i_READ_ADDR2   : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
+    i_READ_ADDR0   : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
+    i_READ_ADDR1   : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
+    i_READ_ADDR2   : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
     
     -- endereco a ser escrito
-    i_WRITE_ADDR  : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
+    i_WRITE_ADDR  : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
     
     -- dados de saida     
     o_DATA_ROW_0  : out std_logic_vector (DATA_WIDTH - 1 downto 0);
@@ -98,9 +98,9 @@ begin
                 
                 
   -- enable buffers
-  w_WRITE_ENA(0) <= not i_SEL_LINE(0) and not i_SEL_LINE(1) and i_WRITE_ENA;
-  w_WRITE_ENA(1) <= not i_SEL_LINE(0) and     i_SEL_LINE(1) and i_WRITE_ENA;
-  w_WRITE_ENA(2) <=     i_SEL_LINE(0) and not i_SEL_LINE(1) and i_WRITE_ENA;
+  w_WRITE_ENA(0) <= not i_SEL_LINE(1) and not i_SEL_LINE(0) and i_WRITE_ENA;
+  w_WRITE_ENA(1) <= not i_SEL_LINE(1) and     i_SEL_LINE(0) and i_WRITE_ENA;
+  w_WRITE_ENA(2) <=     i_SEL_LINE(1) and not i_SEL_LINE(0) and i_WRITE_ENA;
   
   
   -- blocos de memoria

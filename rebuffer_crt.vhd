@@ -36,13 +36,13 @@ entity rebuffer_crt is
   generic (
     ADDR_WIDTH : integer := 8;
     DATA_WIDTH : integer := 8;    
-    NUM_BUFF   : std_logic_vector(1 downto 0) := "11"; -- 3 buffers
-    IFMAP_WIDTH : std_logic_vector(5 downto 0) := "100000"; -- 32
-    IFMAP_HEIGHT : std_logic_vector(5 downto 0) := "011000"; -- 24
-    OFMAP_WIDTH : std_logic_vector(5 downto 0) := "100010"; -- 34
-    OFMAP_HEIGHT : std_logic_vector(4 downto 0) := "11010"; -- 26
-    PAD_H : std_logic_vector(5 downto 0) := "100001"; -- 33
-    PAD_W : std_logic_vector(5 downto 0) := "011001" -- 25
+    NUM_BUFF   : std_logic_vector(1 downto 0)   := "11";    -- 3 buffers
+    IFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011000";  -- 24
+    IFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100000";  -- 32
+    OFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011010";  -- 26
+    OFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100010";  -- 34
+    PAD_H : std_logic_vector(5 downto 0) := "100001"; -- 33 (indice para adicionar pad linha de baixo)
+    PAD_W : std_logic_vector(5 downto 0) := "011001" -- 25 (indice para adicionar pad coluna da direita)
   );
   port (
     i_CLK       : in  std_logic;
@@ -67,7 +67,7 @@ entity rebuffer_crt is
     -- habilita escrita    
     o_WRITE_ENA : out std_logic;
     -- linha de buffer selecionada
-    o_SEL_BUFF  : out std_logic_vector (1 downto 0);
+    o_SEL_BUFF_LINE  : out std_logic_vector (1 downto 0);
     
     o_READY     : out std_logic
   );
@@ -82,13 +82,13 @@ architecture arch of rebuffer_crt is
     s_MAX_COL     , -- verifica se atingiu numero maximo de colunas de saida
     s_PAD         , -- verifica se tem padding 
     s_DADO_ZERO   , -- dado = zero
-    s_DADO_INPUT  , -- dado = input
-    s_INC_IN_ADDR , -- incrementa endereco de entrada
+    s_READ_ENA    , -- habilita leitura da RAM de pixels
+    s_DADO_INPUT  , -- dado = input[addr++]    
     s_INC_COL_CNTR, -- incrementa contador de coluna
     s_SEL_BUFF    , -- verifica buffer selecionado
-    s_BUFF0       , -- atribui dado a buffer 1 e incrementa contador de endreco do buffer
-    s_BUFF1       , -- atribui dado a buffer 2 e incrementa contador de endreco do buffer
-    s_BUFF2       , -- atribui dado a buffer 3 e incrementa contador de endreco do buffer
+    s_BUFF_LINE0  , -- atribui dado a linha 1 do buffer e incrementa contador de endreco do buffer
+    s_BUFF_LINE1  , -- atribui dado a linha 2 do buffer e incrementa contador de endreco do buffer
+    s_BUFF_LINE2  , -- atribui dado a linha 3 do buffer e incrementa contador de endreco do buffer
     s_INC_ROW_CNTR, -- incrementa contador de linha e contador de linhas de buffer     
     s_SEL_MAX     , -- verifica se sel_buff atingiu numero maximo linhas de buffer
     s_RST_SEL_BUFF, -- zera sel_buff
@@ -118,7 +118,7 @@ architecture arch of rebuffer_crt is
   ------------------
     
   -- seleciona buffer para incrementar
-  signal r_SEL_BUFF : std_logic_vector (1 downto 0) := "00";
+  signal r_SEL_BUFF_LINE : std_logic_vector (1 downto 0) := "00";
   
   
   -- sinaliza se oi endereco de linha ou coluna é de borda
@@ -148,7 +148,7 @@ begin
   end process;
     
      
-  p_NEXT : process (r_STATE, i_GO, r_ROW_CNT, r_COL_CNT, r_READ_ADDR, r_SEL_BUFF, w_IS_PAD)
+  p_NEXT : process (r_STATE, i_GO, r_ROW_CNT, r_COL_CNT, r_READ_ADDR, r_SEL_BUFF_LINE, w_IS_PAD)
   begin
     case (r_STATE) is
       when s_IDLE => -- aguarda sinal go
@@ -179,11 +179,14 @@ begin
         if (w_IS_PAD = '1') then 
           w_NEXT <= s_DADO_ZERO;
         else
-          w_NEXT <= s_DADO_INPUT;
+          w_NEXT <= s_READ_ENA;
         end if;
                 
       when s_DADO_ZERO => -- atribui zero ao registrador de dado
         w_NEXT <= s_INC_COL_CNTR;
+        
+      when s_READ_ENA => 
+        w_NEXT <= s_DADO_INPUT;
         
       when s_DADO_INPUT => -- atribui o valor de entrada ao registrador de dado
         w_NEXT <= s_INC_COL_CNTR;
@@ -192,31 +195,31 @@ begin
         w_NEXT <= s_SEL_BUFF;
 
       when s_SEL_BUFF =>  -- verifica buffer selecionado
-        if (r_SEL_BUFF = "00") then
-          w_NEXT <= s_BUFF0;  
-        elsif (r_SEL_BUFF = "01") then
-          w_NEXT <= s_BUFF1;
-        elsif (r_SEL_BUFF = "10") then
-          w_NEXT <= s_BUFF2;
+        if (r_SEL_BUFF_LINE = "00") then
+          w_NEXT <= s_BUFF_LINE0;  
+        elsif (r_SEL_BUFF_LINE = "01") then
+          w_NEXT <= s_BUFF_LINE1;
+        elsif (r_SEL_BUFF_LINE = "10") then
+          w_NEXT <= s_BUFF_LINE2;
         else
-          w_NEXT <= s_BUFF0;
+          w_NEXT <= s_BUFF_LINE0;
         end if;
         
 
-      when s_BUFF0  => 
+      when s_BUFF_LINE0  => 
         w_NEXT <= s_MAX_COL;
         
-      when s_BUFF1  => 
+      when s_BUFF_LINE1  => 
         w_NEXT <= s_MAX_COL;
         
-      when s_BUFF2 => 
+      when s_BUFF_LINE2 => 
         w_NEXT <= s_MAX_COL;   
         
       when s_INC_ROW_CNTR => -- incrementa row_cnt and sel_buff
         w_NEXT <= s_SEL_MAX;
         
       when s_SEL_MAX => -- verifica se sel_buff atigiu valor maximo
-        if (r_SEL_BUFF = "11") then 
+        if (r_SEL_BUFF_LINE = "11") then 
           w_NEXT <= s_RST_SEL_BUFF;
         else
           w_NEXT <= s_MAX_ROW;
@@ -269,11 +272,11 @@ begin
                   r_COL_CNT;
   
   -- seleciona um dos buffers de saida para escrita do dado
-  r_SEL_BUFF <= (others => '0')           
+  r_SEL_BUFF_LINE <= (others => '0')           
                   when (i_CLR = '1' or r_STATE = s_IDLE or r_STATE = s_RST_SEL_BUFF) else
-                (r_SEL_BUFF + "01") 
+                (r_SEL_BUFF_LINE + "01") 
                   when (rising_edge(i_CLK) and r_STATE = s_INC_ROW_CNTR) else 
-                r_SEL_BUFF;
+                r_SEL_BUFF_LINE;
                 
   -- incrementa endereco de buffer de entrada
   r_READ_ADDR <=  (others => '0')           
@@ -287,21 +290,21 @@ begin
   r_BUFF_0 <= (others => '0')           
                 when (i_CLR = '1' or r_STATE = s_IDLE) else
               (r_BUFF_0 + "0000000001") 
-                when (rising_edge(i_CLK) and r_STATE = s_BUFF0) else 
+                when (rising_edge(i_CLK) and r_STATE = s_BUFF_LINE0) else 
               r_BUFF_0;
   
   -- incrementa endereco de segundo buffer de saida
   r_BUFF_1 <= (others => '0')           
                 when (i_CLR = '1' or r_STATE = s_IDLE) else
               (r_BUFF_1 + "0000000001") 
-                when (rising_edge(i_CLK) and r_STATE = s_BUFF1) else 
+                when (rising_edge(i_CLK) and r_STATE = s_BUFF_LINE1) else 
               r_BUFF_1;
   
   -- incrementa endereco de segundo buffer de saida
   r_BUFF_2 <= (others => '0')           
                 when (i_CLR = '1' or r_STATE = s_IDLE) else
               (r_BUFF_2 + "0000000001") 
-                when (rising_edge(i_CLK) and r_STATE = s_BUFF2) else 
+                when (rising_edge(i_CLK) and r_STATE = s_BUFF_LINE2) else 
               r_BUFF_2;
   
   
@@ -314,20 +317,20 @@ begin
             r_BUFF_1 (ADDR_WIDTH - 1 downto 0),
             r_BUFF_2 (ADDR_WIDTH - 1 downto 0),
             (others => '0'),
-            r_SEL_BUFF,
+            r_SEL_BUFF_LINE,
             o_OUT_ADDR
           );
   
   -- linha de buffer selecionada
-  o_SEL_BUFF <= r_SEL_BUFF;
+  o_SEL_BUFF_LINE <= r_SEL_BUFF_LINE;
   
   -- enable escrita
   o_WRITE_ENA <= '1' 
-                  when (r_STATE = s_BUFF0 or r_STATE = s_BUFF1 or r_STATE = s_BUFF2) else 
+                  when (r_STATE = s_BUFF_LINE0 or r_STATE = s_BUFF_LINE1 or r_STATE = s_BUFF_LINE2) else 
                  '0';
   
   -- habilita leitura
-  o_READ_ENA <= '1' when (r_STATE = s_DADO_INPUT) else '0';
+  o_READ_ENA <= '1' when (r_STATE = s_READ_ENA) else '0';
   
   -- endereco de leitura
   o_IN_ADDR <= r_READ_ADDR(ADDR_WIDTH - 1 downto 0); 

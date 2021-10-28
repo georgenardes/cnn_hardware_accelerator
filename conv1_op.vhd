@@ -139,7 +139,7 @@ entity conv1_op is
     -- habilita leitura buffer de saida
     i_OUT_READ_ENA : in std_logic;
     -- endereco de leitura buffer de saida
-    i_OUT_READ_ADDR : in std_logic_vector (9 downto 0);
+    i_OUT_READ_ADDR : in std_logic_vector (9 downto 0) := (others => '0');
     -- incrementa endereco de saida
     i_OUT_INC_ADDR : in std_logic;
     -- reset endreco de saida
@@ -482,7 +482,7 @@ begin
       begin
 		
 			-- habilita deslocamento de peso                       
-      w_PES_SHIFT_ENABLE <= w_NC_PES_ADDR((i*M)+j) AND i_PES_SHIFT_ENA;
+      w_PES_SHIFT_ENABLE <= w_NC_PES_ADDR((j*C)+i) AND i_PES_SHIFT_ENA;
 
       -- nucleos convolucionais 
       NCX : nucleo_convolucional             
