@@ -23,5 +23,10 @@ package conv1_pkg IS
   -- +1 pq o mux precisa de 2**2 entradas, mesmo que apenas 3 delas sejam usadas
   type t_MUX_I_VET is array (0 to c_CONV1_C - 1 + 1 ) of STD_LOGIC_VECTOR(c_CONV1_O_DATA_WIDTH-1 downto 0);
   
+  
+  type myarray_t is array(integer range<>) of std_logic_vector;
+  type mem_t is array(integer range<>) of myarray_t;
+  
+  
 end package conv1_pkg;
 ------------------------------------------------------

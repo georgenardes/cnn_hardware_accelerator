@@ -10,6 +10,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
+USE ieee.numeric_std.all;
 library work;
 use work.conv1_pkg.all;
 use work.types_pkg.all;
@@ -23,7 +24,11 @@ entity conv1_crt is
     S : integer := 3; -- filter Width     
     M : integer := 6; -- Number of filters (oFMAP Chanels also)    
     DATA_WIDTH : integer := 8;
-    ADDR_WIDTH : integer := 10;    
+    ADDR_WIDTH : integer := 10;
+    NC_SEL_WIDTH  : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro
+    NC_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar NCs 
+    WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
+    BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
     OFFSET_ADDR : std_logic_vector := "0000011010"; -- 26
     NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
     LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
@@ -53,10 +58,10 @@ entity conv1_crt is
     
     -- sinal para rom de pesos
     o_PES_READ_ENA  : out std_logic; 
-    o_PES_READ_ADDR : out std_logic_vector(7 downto 0);  -- bits para enderecamento ROM de pesos
+    o_PES_READ_ADDR : out std_logic_vector(WEIGHTS_ADDRESS_WIDTH-1 downto 0);  -- bits para enderecamento ROM de pesos
     
     -- SINAL PARA ROM DE BIAS E SCALES
-    o_BIAS_READ_ADDR : out STD_LOGIC_VECTOR (4 DOWNTO 0);
+    o_BIAS_READ_ADDR : out STD_LOGIC_VECTOR (BIAS_ADDRESS_WIDTH-1 DOWNTO 0);
     o_BIAS_READ_ENA  : out std_logic; 
     
     -- habilita escrita nos registradores de bias e scale
@@ -72,13 +77,13 @@ entity conv1_crt is
     o_PES_SHIFT_ENA : out  std_logic;
     
     -- endereco do NC para carregar pesos     
-    o_NC_ADDR : out std_logic_vector(c_NC-1 downto 0);    
+    o_NC_ADDR : out std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
     
     -- seleciona linha dos registradores de deslocamento
     o_PES_ROW_SEL : out std_logic_vector(1 downto 0);
 
     -- seleciona saida de NCs
-    o_NC_O_SEL      : out  std_logic_vector(c_NC_SEL_WIDHT - 1 downto 0);
+    o_NC_O_SEL      : out  std_logic_vector(NC_SEL_WIDTH  - 1 downto 0);
     -- habilita acumulador de pixels de saida dos NCs
     o_ACC_ENA       : out  std_logic;
     -- reseta acumulador de pixels de saida dos NCs
@@ -159,7 +164,7 @@ architecture arch of conv1_crt is
   signal W_CNT_REG_PIX_RST : std_logic;
   
   -- seleciona saida de NCs
-  signal r_NC_O_SEL : std_logic_vector(c_NC_SEL_WIDHT - 1 downto 0) := (others => '0');
+  signal r_NC_O_SEL : std_logic_vector(NC_SEL_WIDTH  - 1 downto 0) := (others => '0');
   signal w_NC_O_SEL_INC : std_logic; 
   signal w_NC_O_SEL_RST : std_logic;
   
@@ -185,9 +190,10 @@ architecture arch of conv1_crt is
   
   
   -- enderecamento dos pesos
-  signal r_PES_ADDR : std_logic_vector(7 downto 0);    
+  signal r_PES_ADDR : std_logic_vector(WEIGHTS_ADDRESS_WIDTH-1 downto 0);
+  
   -- conta pesos por filtro
-  signal r_NUM_PES_FILTER : std_logic_vector(4 downto 0);
+  signal r_NUM_PES_FILTER : std_logic_vector(4 downto 0); -- maximo 32 pesos por filtro por canal
   signal w_RST_NUM_PES : std_logic;
   
   -- seleciona linha dos registradores de deslocamento
@@ -196,11 +202,11 @@ architecture arch of conv1_crt is
   signal w_RST_PES_ROW_CNTR : std_logic;
   signal w_RST_PES_COL_CNTR : std_logic;
   
-  -- enderecamento dos bias e scales (32 enderecos)
-  signal r_BIAS_ADDR : std_logic_vector(4 downto 0);
+  -- enderecamento dos bias e scales 
+  signal r_BIAS_ADDR : std_logic_vector(BIAS_ADDRESS_WIDTH-1 downto 0);
         
   -- endereco do NC para carregar pesos     
-  signal r_NC_ADDR : std_logic_vector(c_NC-1 downto 0);    
+  signal r_NC_ADDR : std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
   
   -- componenbte contador para enderecaomento
   component counter is
@@ -516,8 +522,10 @@ begin
   
   
   -- enderecamento dos pesos
-  r_PES_ADDR <= (others => '0') when (i_CLR = '1' or r_STATE = s_IDLE) else
-                r_PES_ADDR + "00000001" when (rising_edge(i_CLK) and r_STATE = s_PES_INC_ADDR) else
+  r_PES_ADDR <= (others => '0') 
+                      when (i_CLR = '1' or r_STATE = s_IDLE) else
+                r_PES_ADDR + std_logic_vector(to_unsigned(1, r_PES_ADDR'length)) 
+                      when (rising_edge(i_CLK) and r_STATE = s_PES_INC_ADDR) else
                 r_PES_ADDR;
   
   -- enderecametno do bias

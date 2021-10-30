@@ -42,7 +42,8 @@ entity rebuffer_crt is
     OFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011010";  -- 26
     OFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100010";  -- 34
     PAD_H : std_logic_vector(5 downto 0) := "100001"; -- 33 (indice para adicionar pad linha de baixo)
-    PAD_W : std_logic_vector(5 downto 0) := "011001" -- 25 (indice para adicionar pad coluna da direita)
+    PAD_W : std_logic_vector(5 downto 0) := "011001"; -- 25 (indice para adicionar pad coluna da direita)
+    WITH_PAD : std_logic := '1'
   );
   port (
     i_CLK       : in  std_logic;
@@ -219,7 +220,7 @@ begin
         w_NEXT <= s_SEL_MAX;
         
       when s_SEL_MAX => -- verifica se sel_buff atigiu valor maximo
-        if (r_SEL_BUFF_LINE = "11") then 
+        if (r_SEL_BUFF_LINE = NUM_BUFF) then 
           w_NEXT <= s_RST_SEL_BUFF;
         else
           w_NEXT <= s_MAX_ROW;
@@ -244,7 +245,11 @@ begin
   
   --- checar maq estados(OK) e fazer operadores
   w_IS_PAD <= '1' 
-                when (r_ROW_CNT = "000000" or r_ROW_CNT = PAD_H or r_COL_CNT = "000000" or r_COL_CNT = PAD_W) 
+                when ((r_ROW_CNT = "000000" or 
+                       r_ROW_CNT = PAD_H or 
+                       r_COL_CNT = "000000" or 
+                       r_COL_CNT = PAD_W) and 
+                        WITH_PAD = '1') 
                 else  
               '0';
   -- sinaliza borda

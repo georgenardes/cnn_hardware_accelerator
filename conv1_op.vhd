@@ -13,12 +13,16 @@ USE ieee.numeric_std.ALL;
 library work;
 use work.conv1_pkg.all;
 
-ENTITY mux_conv1 is             
+ENTITY mux_conv1 is      
+  generic (NC_SEL_WIDTH : integer := 2);
   PORT 
-  (  
-    i_A   : IN  t_MUX_I_VET := (others => (others => '0'));
-    i_SEL : IN  std_logic_vector(c_NC_SEL_WIDHT - 1 DOWNTO 0); -- 000 00 
-    o_Q   : OUT std_logic_vector(c_CONV1_O_DATA_WIDTH - 1 DOWNTO 0)
+  (    
+    -- addr : in myarray_t(NUM_RAMS-1 downto 0)(A_WID-1 downto 0); 
+    -- type t_MUX_I_VET is array (0 to c_CONV1_C - 1 + 1 ) of STD_LOGIC_VECTOR(c_CONV1_O_DATA_WIDTH-1 downto 0);    
+    -- i_A   : IN      t_MUX_I_VET := (others => (others => '0'));
+    i_A   : IN  myarray_t(0 to c_CONV1_C)(31 downto 0) := (others => (others => '0'));
+    i_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0); -- 000 00 
+    o_Q   : OUT std_logic_vector(31 DOWNTO 0)
   );
 END mux_conv1;
 ARCHITECTURE arch OF mux_conv1 IS
@@ -62,7 +66,13 @@ entity conv1_op is
     C : integer := 3;  -- iFMAP Chanels (filter Chanels also)
     R : integer := 3; -- filter Height 
     S : integer := 3; -- filter Width     
-    M : integer := 6; -- Number of filters (oFMAP Chanels also)        
+    M : integer := 6; -- Number of filters (oFMAP Chanels also)  
+    NC_SEL_WIDTH : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro
+    NC_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar NCs 
+    NC_OHE_WIDTH : integer := 18; -- numero de bits para one-hot-encoder de NCs
+    BIAS_OHE_WIDTH : integer := 12; -- numero de bits para one-hot-encoder de bias e scales
+    WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
+    BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
     DATA_WIDTH : integer := 8;
     ADDR_WIDTH : integer := 10
   );
@@ -96,12 +106,14 @@ entity conv1_op is
     
     
     -- sinal para rom de pesos
-    i_PES_READ_ENA  : in std_logic; 
-    i_PES_READ_ADDR : in std_logic_vector(7 downto 0);  -- bits para enderecamento ROM de pesos
+    -- i_PES_READ_ENA  : in std_logic; 
+    -- i_PES_READ_ADDR : in std_logic_vector(7 downto 0);  -- bits para enderecamento ROM de pesos
+    i_PES : in std_logic_vector(7 downto 0);
     
-    -- SINAL PARA ROM DE BIAS E SCALES
-    i_BIAS_READ_ADDR : IN STD_LOGIC_VECTOR (4 DOWNTO 0);
-    i_BIAS_READ_ENA  : in std_logic; 
+    -- SINAL PARA ROM DE BIAS E SCALES    
+    -- i_BIAS_READ_ENA  : in std_logic; 
+    i_BIAS_WRITE_ADDR : IN STD_LOGIC_VECTOR (BIAS_ADDRESS_WIDTH-1 DOWNTO 0);
+    i_BIAS : in std_logic_vector (31 downto 0);
     
     -- habilita escrita nos registradores de bias e scale
     i_BIAS_WRITE_ENA :  in std_logic;
@@ -113,13 +125,13 @@ entity conv1_op is
     -- habilita deslocamento dos registradores de pixels e pesos
     i_PIX_SHIFT_ENA : in STD_LOGIC;    
     i_PES_SHIFT_ENA : in STD_LOGIC;    
-    i_PES_SHIFT_ADDR : in std_logic_vector(c_NC-1 downto 0);    -- endereco do NC para carregar pesos     
+    i_PES_SHIFT_ADDR : in std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    -- endereco do NC para carregar pesos     
     
     -- seleciona linha dos registradores de deslocamento
     i_PES_ROW_SEL : in std_logic_vector(1 downto 0);
     
     -- seleciona saida de NCs
-    i_NC_O_SEL : IN  std_logic_vector(c_NC_SEL_WIDHT - 1 DOWNTO 0); 
+    i_NC_O_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0); 
     -- habilita acumulador de pixels de saida dos NCs
     i_ACC_ENA : in std_logic;
     -- reseta acumulador de pixels de saida dos NCs
@@ -273,12 +285,14 @@ architecture arch of conv1_op is
   -------------------------------
   -- Mux conv 1 
   -------------------------------     
-  component mux_conv1 is             
+  component mux_conv1 is  
+    generic (NC_SEL_WIDTH : integer := 2);
     PORT 
     (  
-      i_A   : IN  t_MUX_I_VET;
-      i_SEL : IN  std_logic_vector(c_NC_SEL_WIDHT - 1 DOWNTO 0); 
-      o_Q   : OUT std_logic_vector(c_CONV1_O_DATA_WIDTH - 1 DOWNTO 0)
+      -- i_A   : IN  t_MUX_I_VET;
+      i_A   : IN  myarray_t(0 to c_CONV1_C)(31 downto 0) := (others => (others => '0'));
+      i_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0); 
+      o_Q   : OUT std_logic_vector(31 DOWNTO 0)
     );
   end component;
   ------------------------------- 
@@ -315,60 +329,29 @@ architecture arch of conv1_op is
       q		    : OUT STD_LOGIC_VECTOR (DATA_WIDTH - 1 DOWNTO 0)
     );
   END component;
-  -------------------------------
-  
-  -------------------------------
-  -- ROM pesos
-  -------------------------------
-  component conv1_weights IS
-    PORT
-    (
-      address		: IN STD_LOGIC_VECTOR (7 DOWNTO 0);
-      clock		: IN STD_LOGIC  := '1';
-      rden		: IN STD_LOGIC  := '1';
-      q		: OUT STD_LOGIC_VECTOR (7 DOWNTO 0)
-    );
-  end component;
-  -------------------------------
-  
-  -------------------------------
-  -- ROM bias e scale down multipliers
-  -------------------------------
-  component conv1_bias IS
-    PORT
-    (
-      address		: IN STD_LOGIC_VECTOR (4 DOWNTO 0);
-      clken		: IN STD_LOGIC  := '1';
-      clock		: IN STD_LOGIC  := '1';
-      q		: OUT STD_LOGIC_VECTOR (31 DOWNTO 0)
-    );
-  end component;
-  -------------------------------
+  -------------------------------   
   
   -------------------------------
   -------------------------------
   component one_hot_encoder is
     generic 
     (
-      DATA_WIDTH : integer := 4;
-      NUM        : integer := 18 -- quantidade de elementos enderecados   
+      DATA_WIDTH : integer := 5;
+      OUT_WIDTH  : integer := 18 -- quantidade de elementos enderecados   
     );
     port 
     (
        i_DATA : in std_logic_vector(DATA_WIDTH-1 downto 0);
-       o_DATA : out std_logic_vector((DATA_WIDTH**2)-1 downto 0)
+       o_DATA : out std_logic_vector(OUT_WIDTH-1 downto 0)
     );
   end component;
   -------------------------------
   
   -- sinal one-hot para habilitar escrita dos pesos nos NCs
-  signal w_NC_PES_ADDR : std_logic_vector ((c_NC**2) - 1 downto 0);
+  signal w_NC_PES_ADDR : std_logic_vector (NC_OHE_WIDTH - 1 downto 0);
   
   -- sinal one-hot para habilitar escrita dos bias e scales
-  signal w_BIAS_SCALE_ADDR : std_logic_vector ((5**2)-1 downto 0);
-  
-  -- peso de entrada do NC
-  signal w_i_PES : STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0);
+  signal w_BIAS_SCALE_ADDR : std_logic_vector (BIAS_OHE_WIDTH-1 downto 0);   
   
   -- saida de todos NCs
   signal w_o_NC : t_NC_O_VET;
@@ -389,10 +372,7 @@ architecture arch of conv1_op is
   signal w_CONFIG0, w_CONFIG1 : std_logic;
     
   -- entrada one-hot para reg bias
-  signal w_BIAS_REG_ENA : std_logic_vector(M-1 downto 0); 
-  
-  -- saida da ROM bias
-  signal w_BIAS : std_logic_vector(c_CONV1_O_DATA_WIDTH-1 downto 0); 
+  signal w_BIAS_REG_ENA : std_logic_vector(M-1 downto 0);    
   
   -- saida registradores bias
   signal w_o_BIAS_REG : t_MUX_O_VET := (others => (others => '0')); 
@@ -496,7 +476,7 @@ begin
                 i_PIX_ROW_2     => w_NC_PIX_ROW_2,    
                 i_PIX_ROW_3     => w_NC_PIX_ROW_3,  
                 i_PES_ROW_SEL   => i_PES_ROW_SEL, -- habilita linha de peso
-                i_PES           => w_i_PES,       -- peso de entrada
+                i_PES           => i_PES,       -- peso de entrada
                 o_PIX           => w_o_PIX
               );
               
@@ -521,17 +501,15 @@ begin
   for i in 0 to M-1 generate
     
     -- entrada MUX saída NCs
-    signal w_MUX_I_VET : t_MUX_I_VET := (others => (others => '0'));    
+    -- signal w_MUX_I_VET : t_MUX_I_VET := (others => (others => '0'));    
+    signal w_MUX_I_VET : myarray_t(0 to c_CONV1_C)(31 downto 0) := (others => (others => '0'));    
     
     -- sinais para somadores
     signal w_COUT, w_OVERFLOW, w_UNDERFLOW : std_logic;
     signal w_ADD_OUT : STD_LOGIC_VECTOR(c_CONV1_O_DATA_WIDTH-1 downto 0);
     
     -- sinal de saida relu
-    signal w_RELU_OUT : STD_LOGIC_VECTOR(7 downto 0);
-    
-    -- saida blocos de memoria
-    signal w_i_PIX_ROW_2, w_i_PIX_ROW_3 : std_logic_vector (7 downto 0);
+    signal w_RELU_OUT : STD_LOGIC_VECTOR(7 downto 0);       
     
     -- saida scale down
     signal w_o_SCALE_DOWN : std_logic_vector(63 downto 0) := (others => '0');
@@ -556,6 +534,7 @@ begin
     
     -- mux para soma dos valores de saida
     MUXX : mux_conv1 
+                generic map (NC_SEL_WIDTH)
                 port map
                 (
                   i_A  => w_MUX_I_VET,
@@ -599,12 +578,12 @@ begin
               i_CLK,
               i_CLR,
               w_BIAS_WRITE_ENA, 
-              w_BIAS,           -- entrada (saida da ROM bias)
+              i_BIAS,           -- entrada (saida da ROM bias)
               w_o_BIAS_REG(i)  
             );
     
 		-- habilita escrita reg scale
-		w_SCALE_WRITE_ENA <= w_BIAS_SCALE_ADDR(i+6) and i_SCALE_WRITE_ENA;
+		w_SCALE_WRITE_ENA <= w_BIAS_SCALE_ADDR(i+M) and i_SCALE_WRITE_ENA;
 
     -- registrador de scale down    
     SCALE_REGX : registrador 
@@ -614,7 +593,7 @@ begin
               i_CLK,
               i_CLR,
               w_SCALE_WRITE_ENA, -- saida one-hot para reg scale
-              w_SCALE,          -- entrada (saida da ROM bias)
+              i_BIAS,          -- entrada (saida da ROM bias)
               w_o_SCALE_REG(i)  
             );
     
@@ -661,9 +640,7 @@ begin
                 i_OUT_READ_ADDR  , -- não importa (apenas um bloco)
                 i_OUT_READ_ADDR  , -- não importa (apenas um bloco)
                 r_OUT_ADDR       , -- endereco de escrita
-                o_OUT_DATA(i)    , -- saida 
-                w_i_PIX_ROW_2    , -- saida sem logica
-                w_i_PIX_ROW_3      -- saida sem logica
+                o_OUT_DATA(i)     -- saida 
               );
   
   
@@ -672,46 +649,22 @@ begin
     
   -- decodifica endereco de NC para habilitar escrita nos reg de deslocamento PESOS
   u_OHE_PES : one_hot_encoder
-          generic map (DATA_WIDTH => c_NC, -- bits para enderecamento NC
-                       NUM => 18) -- numero de NC
+          generic map (DATA_WIDTH => NC_ADDRESS_WIDTH, -- bits para enderecamento NC
+                       OUT_WIDTH  => M*C) -- numero de NC
           port map 
           (
              i_DATA => i_PES_SHIFT_ADDR,
              o_DATA => w_NC_PES_ADDR
-          );
-  
-  
-  -- memeoria rom de pesos
-  u_ROM_PESOS : conv1_weights
-              port map 
-              (
-              	address	=> i_PES_READ_ADDR,
-                clock		=> i_CLK,
-                rden		=> i_PES_READ_ENA,
-                q		    => w_i_PES   
-              );
-  
-  -- memeoria rom de BIAS E SCALE
-  u_ROM_BIAS : conv1_bias
-              port map 
-              (
-              	address	=> i_BIAS_READ_ADDR,
-                clken		=> i_BIAS_READ_ENA,
-                clock		=> i_CLK,                
-                q		    => w_BIAS   
-              );
-  -- SAIDA ROM BIAS TAMBEM PARA SCALE  
-  w_SCALE <= w_BIAS;
-  
+          );  
   
   
   -- decodifica endereco da memoria ROM_BIAS para habilitar registradores de BIAS e SCALE
   u_OHE_BIAS : one_hot_encoder
-          generic map (DATA_WIDTH => 5, -- bits para enderecamento REG_BIAS + REG_SCALE
-                       NUM => 12) -- numero de registradores
+          generic map (DATA_WIDTH => BIAS_ADDRESS_WIDTH, -- bits para enderecamento REG_BIAS + REG_SCALE
+                       OUT_WIDTH => 2*M) -- numero de registradores
           port map 
           (
-             i_DATA => i_BIAS_READ_ADDR,
+             i_DATA => i_BIAS_WRITE_ADDR,
              o_DATA => w_BIAS_SCALE_ADDR
           );
   
