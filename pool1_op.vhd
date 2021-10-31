@@ -85,7 +85,7 @@ architecture arch of pool1_op is
   end component;  
       
   -- linha de pixels
-  signal w_PIX_ROW_1, w_PIX_ROW_2, w_o_PIX : t_POOL1_IN := (others => (others => '0'));
+  signal w_PIX_ROW_1, w_PIX_ROW_2, w_o_PIX : t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));
   
 begin
 

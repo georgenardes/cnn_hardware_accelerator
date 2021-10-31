@@ -49,7 +49,7 @@ entity conv1 is
     
     -- sinais para comunicação com rebuffers
     -- dado de entrada
-    i_IN_DATA      : in  t_ARRAY_OF_LOGIC_VECTOR(0 to 2)(DATA_WIDTH-1 downto 0);
+    i_IN_DATA      : in  t_ARRAY_OF_LOGIC_VECTOR(0 to C-1)(DATA_WIDTH-1 downto 0);
     -- habilita escrita    
     i_IN_WRITE_ENA  : in std_logic;    
     -- linha de buffer selecionada
@@ -64,7 +64,7 @@ entity conv1 is
     --------------------------------------------------
     
     -- saida dos buffers de saida
-    o_OUT_DATA : out t_ARRAY_OF_LOGIC_VECTOR(0 to 5)(DATA_WIDTH-1 downto 0)
+    o_OUT_DATA : out t_ARRAY_OF_LOGIC_VECTOR(0 to M-1)(DATA_WIDTH-1 downto 0)
     
   );
 end conv1;
