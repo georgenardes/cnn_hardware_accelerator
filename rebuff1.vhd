@@ -9,15 +9,17 @@ use work.types_pkg.all;
 
 entity rebuff1 is
   generic (
-    ADDR_WIDTH : integer := 10;
-    DATA_WIDTH : integer := 8;    
-    NUM_BUFFER_LINES   : std_logic_vector(1 downto 0)   := "11";    -- 3 buffers
-    IFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011000";  -- 24
-    IFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100000";  -- 32
-    OFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011010";  -- 26
-    OFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100010";  -- 34
-    PAD_H : std_logic_vector(5 downto 0) := "100001"; -- 33 (indice para adicionar pad linha de baixo)
-    PAD_W : std_logic_vector(5 downto 0) := "011001" -- 25 (indice para adicionar pad coluna da direita)
+    ADDR_WIDTH : integer;
+    DATA_WIDTH : integer;  
+    NUM_BUFFER_LINES   : std_logic_vector(1 downto 0);
+    IFMAP_WIDTH : std_logic_vector(5 downto 0);
+    IFMAP_HEIGHT : std_logic_vector(5 downto 0); 
+    OFMAP_WIDTH : std_logic_vector(5 downto 0);
+    OFMAP_HEIGHT : std_logic_vector(5 downto 0);
+    PAD_H : std_logic_vector(5 downto 0);
+    PAD_W : std_logic_vector(5 downto 0);
+    NUM_CHANNELS : integer;
+    WITH_PAD : std_logic
   );
   port (
     i_CLK       : in  std_logic;
@@ -25,7 +27,7 @@ entity rebuff1 is
     i_GO        : in  std_logic;
 
     -- dado de entrada
-    i_DATA      : in  t_REBBUF1_IN;
+    i_DATA      : in  t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0);
     
     -- habilita leitura
     o_READ_ENA  : out std_logic;
@@ -36,7 +38,7 @@ entity rebuff1 is
     -- habilita escrita    
     o_WRITE_ENA : out std_logic;
     -- dado de saida (mesmo q o de entrada)
-    o_DATA      : out t_CONV1_IN;
+    o_DATA      : out t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0);
     -- linha de buffer selecionada
     o_SEL_BUFF_LINE  : out std_logic_vector (1 downto 0);
     
@@ -52,15 +54,16 @@ architecture arch of rebuff1 is
   -- Controle
   component rebuffer_crt is
     generic (
-      ADDR_WIDTH : integer := 8;
-    	DATA_WIDTH : integer := 8;    
-    	NUM_BUFF   : std_logic_vector(1 downto 0)   := "10";    -- 3 buffers
-    	IFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011000";  -- 24
-   	 	IFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100000";  -- 32
-   	 	OFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011010";  -- 26
-  	 	OFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100010";  -- 34
-    	PAD_H : std_logic_vector(5 downto 0) := "100001"; -- 33 (indice para adicionar pad linha de baixo)
-    	PAD_W : std_logic_vector(5 downto 0) := "011001" -- 25 (indice para adicionar pad coluna da direita)
+      ADDR_WIDTH : integer;
+    	DATA_WIDTH : integer;    
+    	NUM_BUFF   : std_logic_vector(1 downto 0)   ;
+    	IFMAP_WIDTH : std_logic_vector(5 downto 0)  ;
+   	 	IFMAP_HEIGHT : std_logic_vector(5 downto 0) ;
+   	 	OFMAP_WIDTH : std_logic_vector(5 downto 0)  ;
+  	 	OFMAP_HEIGHT : std_logic_vector(5 downto 0) ;
+    	PAD_H : std_logic_vector(5 downto 0) ;
+    	PAD_W : std_logic_vector(5 downto 0) ;
+      WITH_PAD : std_logic
     );
     port (
       i_CLK       : in  std_logic;
@@ -135,7 +138,7 @@ architecture arch of rebuff1 is
   -- habilita escrita    
   signal w_WRITE_ENA :  std_logic;
   -- dado de saida (mesmo q o de entrada)
-  signal w_REBUFF_OUT_DATA      :  t_CONV1_IN := (others => (others => '0'));
+  signal w_REBUFF_OUT_DATA      :  t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));
   -- linha de buffer selecionada
   signal w_SEL_BUFF_LINE  :  std_logic_vector (1 downto 0);
   signal w_REBUFF_READY     :  std_logic;
@@ -146,15 +149,16 @@ begin
   u_REBUFFER_CRT : rebuffer_crt 
                   generic map 
                   (
-                    ADDR_WIDTH    => 10,
-                    DATA_WIDTH    => 8,    
-                    NUM_BUFF      => NUM_BUFFER_LINES,     -- 3 buffers
-                    IFMAP_WIDTH   => "011000", -- 24
-                    IFMAP_HEIGHT  => "100000", -- 32
-                    OFMAP_WIDTH   => "011010", -- 26
-                    OFMAP_HEIGHT  => "100010", -- 34
-                    PAD_H         => "100001", -- 33 (indice para adicionar pad linha de baixo)
-                    PAD_W         => "011001"  -- 25 (indice para adicionar pad coluna da direita)
+                    ADDR_WIDTH    => ADDR_WIDTH,
+                    DATA_WIDTH    => DATA_WIDTH,    
+                    NUM_BUFF      => NUM_BUFFER_LINES,     
+                    IFMAP_WIDTH   => IFMAP_WIDTH  , 
+                    IFMAP_HEIGHT  => IFMAP_HEIGHT , 
+                    OFMAP_WIDTH   => OFMAP_WIDTH  , 
+                    OFMAP_HEIGHT  => OFMAP_HEIGHT , 
+                    PAD_H         => PAD_H        , 
+                    PAD_W         => PAD_W,          
+                    WITH_PAD      => WITH_PAD
                   )
                   port map 
                   (
@@ -175,7 +179,7 @@ begin
   
   -- instanciar os rebuffer para cada canal
   GEN_REBUFFER : 
-  for i in 0 to 2 generate  
+  for i in 0 to NUM_CHANNELS-1 generate  
   begin
     
     u_REBUFFER_OP : rebuffer_op 

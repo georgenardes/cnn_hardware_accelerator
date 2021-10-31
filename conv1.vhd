@@ -11,14 +11,33 @@
 library ieee;
 use ieee.std_logic_1164.all;
 library work;
-use work.conv1_pkg.all;
 use work.types_pkg.all;
 
 entity conv1 is
   generic 
   (
-    DATA_WIDTH : integer := 8;
-    ADDR_WIDTH : integer := 10
+    DATA_WIDTH : integer ;
+    ADDR_WIDTH : integer ;
+    H : integer ;
+    W : integer ;
+    C : integer ;
+    R : integer ;
+    S : integer ;
+    M : integer ;      
+    NUM_PES_FILTER_CHA : std_logic_vector; 
+    LAST_PES : std_logic_vector ;
+    LAST_BIAS : std_logic_vector ;
+    LAST_ROW : std_logic_vector ;
+    LAST_COL : std_logic_vector ;
+    NC_SEL_WIDTH : integer ;
+    NC_ADDRESS_WIDTH : integer ;
+    NC_OHE_WIDTH : integer ;
+    BIAS_OHE_WIDTH : integer ;
+    WEIGHTS_ADDRESS_WIDTH : integer ;
+    BIAS_ADDRESS_WIDTH : integer ;
+    SCALE_SHIFT  : t_ARRAY_OF_INTEGER;
+    WEIGHTS_FILE_NAME : STRING;
+    BIAS_FILE_NAME : STRING
   );
   port 
   (
@@ -30,7 +49,7 @@ entity conv1 is
     
     -- sinais para comunicação com rebuffers
     -- dado de entrada
-    i_IN_DATA       : t_CONV1_IN;
+    i_IN_DATA      : in  t_ARRAY_OF_LOGIC_VECTOR(0 to 2)(DATA_WIDTH-1 downto 0);
     -- habilita escrita    
     i_IN_WRITE_ENA  : in std_logic;    
     -- linha de buffer selecionada
@@ -45,50 +64,68 @@ entity conv1 is
     --------------------------------------------------
     
     -- saida dos buffers de saida
-    o_OUT_DATA : out t_CONV1_OUT
+    o_OUT_DATA : out t_ARRAY_OF_LOGIC_VECTOR(0 to 5)(DATA_WIDTH-1 downto 0)
     
   );
 end conv1;
 
 architecture arch of conv1 is  
-  constant H : integer := 34; -- iFMAP Height 
-  constant W : integer := 26; -- iFMAP Width 
-  constant C : integer := 3; -- iFMAP Chanels (filter Chanels also)
-  constant R : integer := 3; -- filter Height 
-  constant S : integer := 3; -- filter Width     
-  constant M : integer := 6; -- Number of filters (oFMAP Chanels also)      
-  constant OFFSET_ADDR : std_logic_vector := "0000011010"; -- 26 
-  constant NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
-  constant LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
-  constant LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
-  constant LAST_ROW : std_logic_vector := "100010"; -- 34 (0 a 33 = 34 pixels) (2 pixels de pad)
-  constant LAST_COL : std_logic_vector := "11010";   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
-  constant NC_ADDRESS_WIDTH : integer := 5; -- num bits para enderecamento de NCs
-  constant NC_SEL_WIDHT : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro
+  -- constant H : integer := 34; -- iFMAP Height 
+  -- constant W : integer := 26; -- iFMAP Width 
+  -- constant C : integer := 3; -- iFMAP Chanels (filter Chanels also)
+  -- constant R : integer := 3; -- filter Height 
+  -- constant S : integer := 3; -- filter Width     
+  -- constant M : integer := 6; -- Number of filters (oFMAP Chanels also)      
+  -- constant NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
+  -- constant LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
+  -- constant LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
+  -- constant LAST_ROW : std_logic_vector := "100010"; -- 34 (0 a 33 = 34 pixels) (2 pixels de pad)
+  -- constant LAST_COL : std_logic_vector := "11010";   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
+  -- constant NC_SEL_WIDTH : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro  
+  -- constant NC_ADDRESS_WIDTH : integer := 5; -- num bits para enderecamento de NCs
+  -- constant NC_OHE_WIDTH : integer := 18; -- numero de bits para one-hot-encoder de NCs
+  -- constant BIAS_OHE_WIDTH : integer := 12; -- numero de bits para one-hot-encoder de bias e scales
+  -- constant WEIGHTS_ADDRESS_WIDTH : integer := 10; -- numero de bits para enderecar pesos
+  -- constant BIAS_ADDRESS_WIDTH : integer := 6; -- numero de bits para enderecar registradores de bias e scale
+  -- constant SCALE_SHIFT  : t_ARRAY_OF_INTEGER(0 to M-1) := (8, 8, 7, 8, 8, 9); --num bits to shift
+  
   
   -------------------------------
   -- ROM pesos
   -------------------------------
   component conv1_weights IS
+    GENERIC 
+    (
+      init_file_name : STRING := "conv1.mif";
+      DATA_WIDTH : INTEGER := 8;
+      DATA_DEPTH : INTEGER := 10
+    );
     PORT
     (
-      address		: IN STD_LOGIC_VECTOR (7 DOWNTO 0);
+      address		: IN STD_LOGIC_VECTOR (DATA_DEPTH - 1 DOWNTO 0);
       clock		: IN STD_LOGIC  := '1';
       rden		: IN STD_LOGIC  := '1';
-      q		: OUT STD_LOGIC_VECTOR (7 DOWNTO 0)
-    );
+      q		: OUT STD_LOGIC_VECTOR (DATA_WIDTH - 1 DOWNTO 0)
+    );   
   end component;
+  -------------------------------
   -------------------------------
   -------------------------------
   -- ROM bias e scale down multipliers
   -------------------------------
   component conv1_bias IS
+    GENERIC 
+    (
+      init_file_name : STRING := "conv2_bias.mif";
+      DATA_WIDTH : INTEGER := 32;
+      DATA_DEPTH : INTEGER := 5
+    );
     PORT
     (
-      address		: IN STD_LOGIC_VECTOR (4 DOWNTO 0);
+      address		: IN STD_LOGIC_VECTOR (DATA_DEPTH-1 DOWNTO 0);
       clken		: IN STD_LOGIC  := '1';
       clock		: IN STD_LOGIC  := '1';
-      q		: OUT STD_LOGIC_VECTOR (31 DOWNTO 0)
+      q		: OUT STD_LOGIC_VECTOR (DATA_WIDTH-1 DOWNTO 0)
     );
   end component;
   -------------------------------
@@ -108,8 +145,7 @@ architecture arch of conv1 is
       NC_SEL_WIDTH  : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro
       NC_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar NCs 
       WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
-      BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
-      OFFSET_ADDR : std_logic_vector := "0000011010"; -- 26
+      BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales      
       NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
       LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
       LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
@@ -123,68 +159,27 @@ architecture arch of conv1 is
       i_GO            : in  std_logic; -- inicia maq
       i_LOAD          : in  std_logic; -- carrega pesos
       o_READY         : out std_logic; -- fim maq
-      
-      ---------------------------------
-      -- sinais para buffers de entrada
-      ---------------------------------
-      -- habilita leitura
       o_IN_READ_ENA   : out  std_logic;
-      -- enderecos a serem lidos
       o_IN_READ_ADDR0 : out std_logic_vector (ADDR_WIDTH - 1 downto 0);
       o_IN_READ_ADDR1 : out std_logic_vector (ADDR_WIDTH - 1 downto 0);
       o_IN_READ_ADDR2 : out std_logic_vector (ADDR_WIDTH - 1 downto 0); 
-      ---------------------------------
-      ---------------------------------
-      
-      -- sinal para rom de pesos
       o_PES_READ_ENA  : out std_logic; 
-      o_PES_READ_ADDR : out std_logic_vector(7 downto 0);  -- bits para enderecamento ROM de pesos
-      
-      -- SINAL PARA ROM DE BIAS E SCALES
-      o_BIAS_READ_ADDR : out STD_LOGIC_VECTOR (4 DOWNTO 0);
+      o_PES_READ_ADDR : out std_logic_vector(WEIGHTS_ADDRESS_WIDTH-1 downto 0);  -- bits para enderecamento ROM de pesos
+      o_BIAS_READ_ADDR : out STD_LOGIC_VECTOR (BIAS_ADDRESS_WIDTH-1 DOWNTO 0);
       o_BIAS_READ_ENA  : out std_logic; 
-      
-      -- habilita escrita nos registradores de bias e scale
       o_BIAS_WRITE_ENA :  out std_logic;
       o_SCALE_WRITE_ENA : out std_logic;
-      
-      
-      ---------------------------------
-      -- sinais para núcleos convolucionais
-      ---------------------------------
-      -- habilita deslocamento dos registradores de pixels e pesos
       o_PIX_SHIFT_ENA : out  std_logic;
       o_PES_SHIFT_ENA : out  std_logic;
-      
-      -- endereco do NC para carregar pesos     
-      o_NC_ADDR : out std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
-      
-      -- seleciona linha dos registradores de deslocamento
-      o_PES_ROW_SEL : out std_logic_vector(1 downto 0);
-
-      -- seleciona saida de NCs
-      o_NC_O_SEL      : out  std_logic_vector(NC_SEL_WIDHT - 1 downto 0);
-      -- habilita acumulador de pixels de saida dos NCs
+      o_NC_ADDR       : out std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
+      o_PES_ROW_SEL   : out std_logic_vector(1 downto 0);
+      o_NC_O_SEL      : out  std_logic_vector(NC_SEL_WIDTH - 1 downto 0);
       o_ACC_ENA       : out  std_logic;
-      -- reseta acumulador de pixels de saida dos NCs
       o_ACC_RST       : out  std_logic;
-      -- seleciona configuração de conexao entre buffer e registradores de deslocamento
       o_ROW_SEL       : out std_logic_vector(1 downto 0); 
-      ---------------------------------
-      ---------------------------------
-      
-      ---------------------------------
-      -- sinais para buffers de saida
-      ---------------------------------
-      -- habilita escrita buffer de saida
       o_OUT_WRITE_ENA : out  std_logic;
-      -- incrementa endereco de saida
       o_OUT_INC_ADDR  : out  std_logic; 
-      -- reset endreco de saida
-      o_OUT_CLR_ADDR : out std_logic
-      ---------------------------------
-      ---------------------------------
-
+      o_OUT_CLR_ADDR : out std_logic      
     );
   end component;
   -----------------------------------------
@@ -194,114 +189,55 @@ architecture arch of conv1 is
   component conv1_op is
     generic 
     (
-        H : integer := 32; -- iFMAP Height 
-        W : integer := 24; -- iFMAP Width 
-        C : integer := 3;  -- iFMAP Chanels (filter Chanels also)
-        R : integer := 3; -- filter Height 
-        S : integer := 3; -- filter Width     
-        M : integer := 6; -- Number of filters (oFMAP Chanels also)      
-        NC_SEL_WIDTH : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro
-        NC_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar NCs 
-        NC_OHE_WIDTH : integer := 18; -- numero de bits para one-hot-encoder de NCs
-        BIAS_OHE_WIDTH : integer := 12; -- numero de bits para one-hot-encoder de bias e scales
-        WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
-        BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
-        DATA_WIDTH : integer := 8;
-        ADDR_WIDTH : integer := 10
+      H : integer := 32; -- iFMAP Height 
+      W : integer := 24; -- iFMAP Width 
+      C : integer := 3;  -- iFMAP Chanels (filter Chanels also)
+      R : integer := 3; -- filter Height 
+      S : integer := 3; -- filter Width     
+      M : integer := 6; -- Number of filters (oFMAP Chanels also)  
+      NC_SEL_WIDTH : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro
+      NC_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar NCs 
+      NC_OHE_WIDTH : integer := 18; -- numero de bits para one-hot-encoder de NCs
+      BIAS_OHE_WIDTH : integer := 12; -- numero de bits para one-hot-encoder de bias e scales
+      WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
+      BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
+      DATA_WIDTH : integer := 8;
+      ADDR_WIDTH : integer := 10;
+      SCALE_SHIFT : t_ARRAY_OF_INTEGER
     );
     port 
     (
       i_CLK       : in STD_LOGIC;
       i_CLR       : in STD_LOGIC;
-      
-      
-      ---------------------------------
-      -- sinais para buffers de entrada
-      ---------------------------------
-      -- habilita leitura
       i_IN_READ_ENA  : in std_logic;
-      -- dado de entrada
-      i_IN_DATA      : in  t_CONV1_IN;
-      -- habilita escrita    
+      i_IN_DATA      : in  t_ARRAY_OF_LOGIC_VECTOR(0 to C-1)(DATA_WIDTH-1 downto 0);
       i_IN_WRITE_ENA : in std_logic;    
-      -- linha de buffer selecionada
       i_IN_SEL_LINE  : in std_logic_vector (1 downto 0);    
-   
-      -- enderecos a serem lidos
       i_IN_READ_ADDR0   : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
       i_IN_READ_ADDR1   : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
       i_IN_READ_ADDR2   : in std_logic_vector (ADDR_WIDTH - 1 downto 0); 
-      
-      -- endereco a ser escrito
       i_IN_WRITE_ADDR  : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
-      ---------------------------------
-      ---------------------------------
-      
-      
-      -- sinal para rom de pesos
-      -- i_PES_READ_ENA  : in std_logic; 
-      -- i_PES_READ_ADDR : in std_logic_vector(7 downto 0);  -- bits para enderecamento ROM de pesos
-      i_PES : in std_logic_vector(7 downto 0);
-      
-      -- SINAL PARA ROM DE BIAS E SCALES    
-      -- i_BIAS_READ_ENA  : in std_logic; 
-      i_BIAS_WRITE_ADDR : IN STD_LOGIC_VECTOR (4 DOWNTO 0);
+      i_PES       : in std_logic_vector(7 downto 0);
+      i_BIAS_WRITE_ADDR : IN STD_LOGIC_VECTOR (BIAS_ADDRESS_WIDTH-1 DOWNTO 0);
       i_BIAS : in std_logic_vector (31 downto 0);
-      
-      -- habilita escrita nos registradores de bias e scale
       i_BIAS_WRITE_ENA :  in std_logic;
       i_SCALE_WRITE_ENA : in std_logic;
-      
-      ---------------------------------
-      -- sinais para núcleos convolucionais
-      ---------------------------------
-      -- habilita deslocamento dos registradores de pixels e pesos
       i_PIX_SHIFT_ENA : in STD_LOGIC;    
       i_PES_SHIFT_ENA : in STD_LOGIC;    
-      
-      -- endereco do NC para carregar pesos     
-      i_PES_SHIFT_ADDR : in std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
-      
-      -- seleciona linha dos registradores de deslocamento
+      i_PES_SHIFT_ADDR : in std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    -- endereco do NC para carregar pesos     
       i_PES_ROW_SEL : in std_logic_vector(1 downto 0);
-      
-      -- seleciona saida de NCs
-      i_NC_O_SEL : IN  std_logic_vector(NC_SEL_WIDHT - 1 DOWNTO 0); 
-      -- habilita acumulador de pixels de saida dos NCs
+      i_NC_O_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0); 
       i_ACC_ENA : in std_logic;
-      -- reseta acumulador de pixels de saida dos NCs
-      i_ACC_RST       : in  std_logic;
-      
-      -- seleciona configuração de conexao entre buffer e registradores de deslocamento
+      i_ACC_RST : in std_logic;
       i_ROW_SEL : in std_logic_vector(1 downto 0);    
-      ---------------------------------
-      ---------------------------------
-      
-      
-      ---------------------------------
-      -- sinais para buffers de saida
-      ---------------------------------
-      -- habilita escrita buffer de saida
       i_OUT_WRITE_ENA : in std_logic;
-      -- habilita leitura buffer de saida
       i_OUT_READ_ENA : in std_logic;
-      -- endereco de leitura buffer de saida
-      i_OUT_READ_ADDR : in std_logic_vector (9 downto 0);
-      -- incrementa endereco de saida
+      i_OUT_READ_ADDR : in std_logic_vector (9 downto 0) := (others => '0');
       i_OUT_INC_ADDR : in std_logic;
-      -- reset endreco de saida
       i_OUT_CLR_ADDR : in std_logic;
-      -- saida dos buffers de saida
-      o_OUT_DATA : out t_CONV1_OUT
-      ---------------------------------
-      ---------------------------------
-
+      o_OUT_DATA : out t_ARRAY_OF_LOGIC_VECTOR(0 to M-1)(DATA_WIDTH-1 downto 0)      
     );
   end component;
-
-  
-  
-  
   
   ---------------------------------
   -- sinais para buffers de entrada
@@ -320,20 +256,20 @@ architecture arch of conv1 is
   ---------------------------------
   -- sinal para rom de pesos
   signal w_PES_READ_ENA  : std_logic; 
-  signal w_PES_READ_ADDR : std_logic_vector(7 downto 0);  -- bits para enderecamento ROM de pesos
+  signal w_PES_READ_ADDR : std_logic_vector(WEIGHTS_ADDRESS_WIDTH-1 downto 0);  -- bits para enderecamento ROM de pesos
   -- peso de entrada do NC
   signal w_i_PES : STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0);
   
   
   -- SINAL PARA ROM DE BIAS E SCALES
-  signal w_BIAS_READ_ADDR : std_logic_vector(4 DOWNTO 0);
+  signal w_BIAS_READ_ADDR : std_logic_vector(BIAS_ADDRESS_WIDTH-1 DOWNTO 0);
   signal w_BIAS_READ_ENA  : std_logic; 
   
   -- habilita escrita nos registradores de bias e scale
   signal w_BIAS_WRITE_ENA :  std_logic;
   signal w_SCALE_WRITE_ENA : std_logic;
   -- saida da ROM bias
-  signal w_BIAS : std_logic_vector(c_CONV1_O_DATA_WIDTH-1 downto 0);
+  signal w_BIAS : std_logic_vector(31 downto 0);
   ----------------------------------
   
   
@@ -351,7 +287,7 @@ architecture arch of conv1 is
   signal w_PES_ROW_SEL : std_logic_vector(1 downto 0);
 
   -- seleciona saida de NCs
-  signal w_NC_O_SEL      : std_logic_vector(NC_SEL_WIDHT - 1 downto 0);
+  signal w_NC_O_SEL      : std_logic_vector(NC_SEL_WIDTH - 1 downto 0);
   -- habilita acumulador de pixels de saida dos NCs
   signal w_ACC_ENA       : std_logic;
   -- reseta acumulador de pixels de saida dos NCs
@@ -380,6 +316,12 @@ begin
 
   -- memoria rom de pesos
   u_ROM_PESOS : conv1_weights
+              generic map 
+              (
+                init_file_name => WEIGHTS_FILE_NAME,
+                DATA_WIDTH => 8,
+                DATA_DEPTH => WEIGHTS_ADDRESS_WIDTH
+              )
               port map 
               (
               	address	=> w_PES_READ_ADDR,
@@ -390,6 +332,12 @@ begin
   
   -- memeoria rom de BIAS E SCALE
   u_ROM_BIAS : conv1_bias
+              generic map 
+              (
+                init_file_name => BIAS_FILE_NAME,
+                DATA_WIDTH => 32,
+                DATA_DEPTH => BIAS_ADDRESS_WIDTH
+              )
               port map 
               (
               	address	=> w_BIAS_READ_ADDR,
@@ -401,21 +349,23 @@ begin
   u_CONTROLE : CONV1_CRT     
               generic map 
               (
-                H => H, -- iFMAP Height 
-                W => W, -- iFMAP Width 
-                C => C, -- iFMAP Chanels (filter Chanels also)
-                R => R, -- filter Height 
-                S => S, -- filter Width     
-                M => M, -- Number of filters (oFMAP Chanels also)
-                DATA_WIDTH  => 8,
-                ADDR_WIDTH  => 10,    
-                OFFSET_ADDR => OFFSET_ADDR, -- 24dec
-                NUM_PES_FILTER_CHA => NUM_PES_FILTER_CHA, -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
-                LAST_PES    => LAST_PES,  -- quantidade de pesos (162)
-                LAST_BIAS   => LAST_BIAS, -- quantidade de bias e scale (12)
-                LAST_ROW    => LAST_ROW,  -- 32 por conta do padd
-                LAST_COL    => LAST_COL   -- 24 por conta do padd
-               
+                H => H, 
+                W => W, 
+                C => C, 
+                R => R, 
+                S => S, 
+                M => M, 
+                DATA_WIDTH            => DATA_WIDTH,
+                ADDR_WIDTH            => ADDR_WIDTH,    
+                NC_SEL_WIDTH          => NC_SEL_WIDTH, 
+                NC_ADDRESS_WIDTH      => NC_ADDRESS_WIDTH, 
+                WEIGHTS_ADDRESS_WIDTH => WEIGHTS_ADDRESS_WIDTH, 
+                BIAS_ADDRESS_WIDTH    => BIAS_ADDRESS_WIDTH,                 
+                NUM_PES_FILTER_CHA    => NUM_PES_FILTER_CHA, 
+                LAST_PES    => LAST_PES,  
+                LAST_BIAS   => LAST_BIAS, 
+                LAST_ROW    => LAST_ROW,  
+                LAST_COL    => LAST_COL   
               )
               port map
               (
@@ -450,14 +400,21 @@ begin
   u_OPERACIONAL : CONV1_OP
               generic map
               (
-                H => H, -- iFMAP Height 
-                W => W, -- iFMAP Width 
-                C => C, -- iFMAP Chanels (filter Chanels also)
-                R => R, -- filter Height 
-                S => S, -- filter Width     
-                M => M, -- Number of filters (oFMAP Chanels also)                
-                DATA_WIDTH => 8,
-                ADDR_WIDTH => 10
+                H => H, 
+                W => W, 
+                C => C, 
+                R => R, 
+                S => S, 
+                M => M,       
+                DATA_WIDTH => DATA_WIDTH,
+                ADDR_WIDTH => ADDR_WIDTH,
+                NC_ADDRESS_WIDTH  => NC_ADDRESS_WIDTH,
+                NC_SEL_WIDTH      => NC_SEL_WIDTH,
+                NC_OHE_WIDTH      => NC_OHE_WIDTH,
+                BIAS_OHE_WIDTH    => BIAS_OHE_WIDTH,
+                WEIGHTS_ADDRESS_WIDTH => WEIGHTS_ADDRESS_WIDTH,
+                BIAS_ADDRESS_WIDTH => BIAS_ADDRESS_WIDTH,
+                SCALE_SHIFT       => SCALE_SHIFT
               )
               port map
               (
@@ -470,12 +427,9 @@ begin
                 i_IN_READ_ADDR0 => w_IN_READ_ADDR0 ,
                 i_IN_READ_ADDR1 => w_IN_READ_ADDR1 ,
                 i_IN_READ_ADDR2 => w_IN_READ_ADDR2 ,              
-                -- i_PES_READ_ENA    => w_PES_READ_ENA    ,
-                -- i_PES_READ_ADDR   => w_PES_READ_ADDR   ,
                 i_PES             => w_i_PES,
                 i_BIAS_WRITE_ADDR  => w_BIAS_READ_ADDR  ,
                 i_BIAS            => w_BIAS,                
-                -- i_BIAS_READ_ENA   => w_BIAS_READ_ENA   ,
                 i_BIAS_WRITE_ENA  => w_BIAS_WRITE_ENA  ,
                 i_SCALE_WRITE_ENA => w_SCALE_WRITE_ENA ,
                 i_PES_SHIFT_ADDR  => w_NC_ADDR,

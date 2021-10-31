@@ -5,6 +5,13 @@ USE ieee.std_logic_1164.ALL;
 
 PACKAGE types_pkg IS
   
+  type t_ARRAY_OF_INTEGER is array (integer range<>) of integer;       
+  type t_ARRAY_OF_LOGIC_VECTOR is array(integer range<>) of std_logic_vector;
+    
+   
+
+
+  
   -- tipo de entrada rebuff1
   type t_REBBUF1_IN is array (0 to 2) of STD_LOGIC_VECTOR(7 downto 0);
   
@@ -25,11 +32,6 @@ PACKAGE types_pkg IS
   type t_CONV2_OUT is array (0 to 15) of STD_LOGIC_VECTOR(7 downto 0);
   
   
-  
-  
-
-
-  
   constant c_SOFTMAX_DATA_WIDTH : integer := 8;
   constant c_SOFTMAX_IN_WIDHT : integer := 35;   
   
@@ -37,9 +39,5 @@ PACKAGE types_pkg IS
   -- 35 entradas de 8 bits
   type t_SOFTMAX_VET is array (0 to c_SOFTMAX_IN_WIDHT - 1) of STD_LOGIC_VECTOR(c_SOFTMAX_DATA_WIDTH-1 downto 0); 
  
-  
-  constant c_RAM_BLOCKS : integer := 487;     
-  constant c_RAM_WIDTH : integer := 8;
-  type t_RAM_INPUT is array (0 to c_RAM_BLOCKS - 1) of STD_LOGIC_VECTOR(c_RAM_WIDTH-1 downto 0);
-   
+    
 END PACKAGE types_pkg;

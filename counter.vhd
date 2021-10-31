@@ -3,12 +3,13 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
+use ieee.numeric_std.all;
 
 entity counter is
   generic 
   (    
     DATA_WIDTH : integer := 8;   
-    STEP : std_logic_vector := "00000001"
+    STEP : integer := 1
   );
   port 
   (
@@ -31,7 +32,7 @@ begin
     if (i_RESET = '1') then
       r_CNT <= i_RESET_VAL;
     elsif (rising_edge(i_CLK) and i_INC = '1') then
-      r_CNT <= r_CNT + STEP;
+      r_CNT <= r_CNT + std_logic_vector(to_unsigned(STEP, DATA_WIDTH));
     end if;
     
   end process;

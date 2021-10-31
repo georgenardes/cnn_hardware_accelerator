@@ -17,7 +17,8 @@ entity rebuff2 is
     OFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011010";  -- 26
     OFMAP_HEIGHT : std_logic_vector(5 downto 0) := "100010";  -- 34
     PAD_H : std_logic_vector(5 downto 0) := "100001"; -- 33 (indice para adicionar pad linha de baixo)
-    PAD_W : std_logic_vector(5 downto 0) := "011001" -- 25 (indice para adicionar pad coluna da direita)
+    PAD_W : std_logic_vector(5 downto 0) := "011001"; -- 25 (indice para adicionar pad coluna da direita)
+    NUM_CHANNELS : integer
   );
   port (
     i_CLK       : in  std_logic;
@@ -25,7 +26,7 @@ entity rebuff2 is
     i_GO        : in  std_logic;
 
     -- dado de entrada
-    i_DATA      : in  t_CONV1_OUT;
+    i_DATA      : in  t_ARRAY_OF_LOGIC_VECTOR(0 to 5)(DATA_WIDTH-1 downto 0);
     
     -- habilita leitura
     o_READ_ENA  : out std_logic;
@@ -36,7 +37,7 @@ entity rebuff2 is
     -- habilita escrita    
     o_WRITE_ENA : out std_logic;
     -- dado de saida (mesmo q o de entrada)
-    o_DATA      : out t_POOL1_IN;
+    o_DATA      : out t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));
     -- linha de buffer selecionada
     o_SEL_BUFF_LINE  : out std_logic_vector (1 downto 0);
     
@@ -136,7 +137,7 @@ architecture arch of rebuff2 is
   -- habilita escrita    
   signal w_WRITE_ENA :  std_logic;
   -- dado de saida (mesmo q o de entrada)
-  signal w_REBUFF_OUT_DATA      :  t_POOL1_IN := (others => (others => '0'));
+  signal w_REBUFF_OUT_DATA      :  t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));
   -- linha de buffer selecionada
   signal w_SEL_BUFF_LINE  :  std_logic_vector (1 downto 0);
   signal w_REBUFF_READY     :  std_logic;

@@ -41,13 +41,19 @@ LIBRARY altera_mf;
 USE altera_mf.altera_mf_components.all;
 
 ENTITY conv1_weights IS
+  GENERIC 
+  (
+    init_file_name : STRING := "input_chanel_1.mif";
+    DATA_WIDTH : INTEGER := 8;
+    DATA_DEPTH : INTEGER := 10
+  );
 	PORT
 	(
-		address		: IN STD_LOGIC_VECTOR (7 DOWNTO 0);
+		address		: IN STD_LOGIC_VECTOR (DATA_DEPTH - 1 DOWNTO 0);
 		clock		: IN STD_LOGIC  := '1';
 		rden		: IN STD_LOGIC  := '1';
-		q		: OUT STD_LOGIC_VECTOR (7 DOWNTO 0)
-	);
+		q		: OUT STD_LOGIC_VECTOR (DATA_WIDTH - 1 DOWNTO 0)
+	);   
 END conv1_weights;
 
 
@@ -63,15 +69,15 @@ BEGIN
 		address_aclr_a => "NONE",
 		clock_enable_input_a => "BYPASS",
 		clock_enable_output_a => "BYPASS",
-		init_file => "conv1.mif",
+		init_file => init_file_name,
 		intended_device_family => "Cyclone V",
 		lpm_hint => "ENABLE_RUNTIME_MOD=NO",
 		lpm_type => "altsyncram",
-		numwords_a => 256,
+		numwords_a => 2**DATA_DEPTH,
 		operation_mode => "ROM",
 		outdata_aclr_a => "NONE",
 		outdata_reg_a => "UNREGISTERED",
-		widthad_a => 8,
+		widthad_a => DATA_DEPTH,
 		width_a => 8,
 		width_byteena_a => 1
 	)

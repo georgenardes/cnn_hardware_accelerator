@@ -7,7 +7,6 @@ use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
 USE ieee.numeric_std.ALL;
 library work;
-use work.conv1_pkg.all;
 use work.types_pkg.all;
 
 

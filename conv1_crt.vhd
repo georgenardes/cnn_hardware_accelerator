@@ -12,7 +12,6 @@ use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
 USE ieee.numeric_std.all;
 library work;
-use work.conv1_pkg.all;
 use work.types_pkg.all;
 
 entity conv1_crt is
@@ -28,8 +27,7 @@ entity conv1_crt is
     NC_SEL_WIDTH  : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro
     NC_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar NCs 
     WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
-    BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
-    OFFSET_ADDR : std_logic_vector := "0000011010"; -- 26
+    BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales    
     NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
     LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
     LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
@@ -137,6 +135,26 @@ architecture arch of conv1_crt is
   signal r_STATE : t_STATE; -- state register
   signal w_NEXT : t_STATE; -- next state    
   
+  
+  
+  -- componenbte contador para enderecaomento
+  component counter is
+    generic 
+    (    
+      DATA_WIDTH : integer := 8;   
+      STEP : integer := 1
+    );
+    port 
+    (
+      i_CLK       : in std_logic;
+      i_RESET     : in std_logic;
+      i_INC       : in std_logic;
+      i_RESET_VAL : in std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+      o_Q         : out std_logic_vector(DATA_WIDTH-1 downto 0)
+    );
+  end component;
+  
+  
   -----------------------------------------------------------------------
   -- enderecos para cada linha de buffer de entrada
   -- a cada deslocamento a baixo o offset é incrementado
@@ -176,56 +194,46 @@ architecture arch of conv1_crt is
   
   -- contador de colunas
   -- default 3 colunas pois inicia a contagem a partir das 3 primeiras colunas
-  signal r_CNT_COL : std_logic_vector(4 downto 0) := "00011"; -- max 2^5-1 = 31 colunas 
+  signal r_CNT_COL : std_logic_vector(4 downto 0) := "00010"; -- max 2^5-1 = 31 colunas 
   signal w_INC_COL_CNT : std_logic;
   signal w_RST_COL_CNT : std_logic;
   signal w_END_COL : std_logic;
   
   -- contador de linhas
   -- default 3 linhas pois inicia a contagem a partir das 3 primeiras linhas
-  signal r_CNT_ROW : std_logic_vector(5 downto 0) := "000011"; -- max 2^6-1 = 63 linhas 
+  signal r_CNT_ROW : std_logic_vector(5 downto 0) := "000010"; -- max 2^6-1 = 63 linhas 
   signal w_INC_ROW_CNT : std_logic;
   signal w_RST_ROW_CNT : std_logic;
   signal w_END_ROW : std_logic;
   
   
   -- enderecamento dos pesos
-  signal r_PES_ADDR : std_logic_vector(WEIGHTS_ADDRESS_WIDTH-1 downto 0);
+  signal r_WEIGHTS_ADDR : std_logic_vector(WEIGHTS_ADDRESS_WIDTH-1 downto 0);
+  signal w_RST_WEIGHT_ADDR       : std_logic; 
+  signal w_INC_WEIGHT_ADDR       : std_logic;
   
   -- conta pesos por filtro
   signal r_NUM_PES_FILTER : std_logic_vector(4 downto 0); -- maximo 32 pesos por filtro por canal
   signal w_RST_NUM_PES : std_logic;
+  signal w_INC_NUM_PES           : std_logic;
   
   -- seleciona linha dos registradores de deslocamento
   signal r_PES_ROW_CNTR : std_logic_vector(1 downto 0);
   signal r_PES_COL_CNTR : std_logic_vector(1 downto 0);
-  signal w_RST_PES_ROW_CNTR : std_logic;
-  signal w_RST_PES_COL_CNTR : std_logic;
-  
+  signal w_RST_WEIGHTS_COL_CNTR  : std_logic;   
+  signal w_INC_WEIGHTS_COL_CNTR  : std_logic;
+  signal w_RST_WEIGHTS_ROW_CNTR  : std_logic;                    
+  signal w_INC_WEIGHTS_ROW_CNTR  : std_logic;
+
   -- enderecamento dos bias e scales 
   signal r_BIAS_ADDR : std_logic_vector(BIAS_ADDRESS_WIDTH-1 downto 0);
+  signal w_RST_BIAS_ADDR       : std_logic;
+  signal w_INC_BIAS_ADDR       : std_logic;        
         
   -- endereco do NC para carregar pesos     
   signal r_NC_ADDR : std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
-  
-  -- componenbte contador para enderecaomento
-  component counter is
-    generic 
-    (    
-      DATA_WIDTH : integer := 8;   
-      STEP : std_logic_vector := "00000001"
-    );
-    port 
-    (
-      i_CLK       : in std_logic;
-      i_RESET     : in std_logic;
-      i_INC       : in std_logic;
-      i_RESET_VAL : in std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
-      o_Q         : out std_logic_vector(DATA_WIDTH-1 downto 0)
-    );
-  end component;
-  
-  
+  signal w_RST_NC_ADDRESS        : std_logic;
+  signal w_INC_NC_ADDRESS        : std_logic; 
   
 begin
 
@@ -239,7 +247,7 @@ begin
   end process;
     
 
-  p_NEXT : process (r_STATE, i_GO, i_LOAD, r_PES_ADDR, r_BIAS_ADDR, r_CNT_REG_PIX, r_NC_O_SEL,  w_END_COL, w_END_ROW)
+  p_NEXT : process (r_STATE, i_GO, i_LOAD, r_WEIGHTS_ADDR, r_BIAS_ADDR, r_CNT_REG_PIX, r_NC_O_SEL,  w_END_COL, w_END_ROW)
   begin
     case (r_STATE) is
       when s_IDLE => -- aguarda sinal go
@@ -252,7 +260,7 @@ begin
         end if;
       
       when s_PES_VERIFY_ADDR => -- verifica endereco de pesos
-        if (r_PES_ADDR <= LAST_PES) then 
+        if (r_WEIGHTS_ADDR <= LAST_PES) then 
           w_NEXT <= s_PES_READ_ENA;
         else
           w_NEXT <= s_BIAS_VERIFY_ADDR;
@@ -298,7 +306,7 @@ begin
         w_NEXT <= s_ACC_FIL_CH;
 
       when s_ACC_FIL_CH => -- acumula canais de um filtro
-        if (r_NC_O_SEL = "11") then -- enquanto < 3
+        if (r_NC_O_SEL = std_logic_vector(to_unsigned(C, r_NC_O_SEL'length))) then -- enquanto < 3
           w_NEXT <= s_WRITE_OUT;
         else 
           w_NEXT <= s_ACC_FIL_CH;          
@@ -345,7 +353,7 @@ begin
   w_RST_IN_ADDR <= '1' when (i_CLR = '1' OR w_END_COL = '1') else '0';     
   -- contador de endereco
   u_INPUT_ADDR : counter 
-              generic map (10, "0000000001")
+              generic map (ADDR_WIDTH, 1)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -364,7 +372,7 @@ begin
   w_INC_IN_ADDR2 <= '1' when (r_ROW_SEL = "10" and r_STATE = s_DOWN_SHIFT) else '0';
   
   u_ADDR0_OFFSET : counter 
-              generic map (10, OFFSET_ADDR)
+              generic map (ADDR_WIDTH, W)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -374,7 +382,7 @@ begin
                 o_Q         => r_ADDR0_OFF
               );  
   u_ADDR1_OFFSET : counter 
-              generic map (10, OFFSET_ADDR)
+              generic map (ADDR_WIDTH, W)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -384,7 +392,7 @@ begin
                 o_Q         => r_ADDR1_OFF
               );
   u_ADDR2_OFFSET : counter 
-              generic map (10, OFFSET_ADDR)
+              generic map (ADDR_WIDTH, W)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -409,7 +417,7 @@ begin
   W_ROW_SEL_RST <= '1' when (i_CLR = '1' or r_STATE = s_IDLE or r_ROW_SEL = "11") else '0';
   W_ROW_SEL_INC <= '1' when (r_STATE = s_DOWN_SHIFT) else '0';
   u_ROW_SEL : counter 
-              generic map (2, "01")
+              generic map (2, 1)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -425,7 +433,7 @@ begin
   w_INC_CNT_REG_PIX <= '1' when (r_STATE = s_LOAD_PIX) else '0';
   W_CNT_REG_PIX_RST <= '1' when (i_CLR = '1' or r_STATE = s_IDLE or r_STATE = s_REG_OUT_NC) else '0';
   u_CNT_REG_PIX : counter 
-              generic map (2, "01")
+              generic map (2, 1)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -446,7 +454,7 @@ begin
   w_NC_O_SEL_INC <= '1' when (r_STATE = s_ACC_FIL_CH) else '0';
   w_NC_O_SEL_RST <= '1' when (i_CLR = '1' or r_STATE = s_IDLE or r_STATE = s_RIGHT_SHIFT) else '0';   
   u_NC_O_SEL : counter 
-              generic map (2, "01")
+              generic map (NC_SEL_WIDTH, 1)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -483,7 +491,7 @@ begin
   w_INC_COL_CNT <= '1' when (r_STATE = s_RIGHT_SHIFT) else '0';    
   w_RST_COL_CNT <= '1' when (i_CLR = '1' or r_STATE = s_IDLE or r_STATE = s_DOWN_SHIFT) else '0';  
   u_CNT_COL : counter 
-              generic map (5, "00001")
+              generic map (5, 1)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -505,7 +513,7 @@ begin
   w_INC_ROW_CNT <= '1' when (r_STATE = s_DOWN_SHIFT) else '0';
   w_RST_ROW_CNT <= '1' when (i_CLR = '1' or r_STATE = s_IDLE) else '0';
   u_CNT_ROW : counter 
-              generic map (6, "000001")
+              generic map (6, 1)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -520,53 +528,106 @@ begin
   ---------------------------------
   ---------------------------------
   
-  
   -- enderecamento dos pesos
-  r_PES_ADDR <= (others => '0') 
-                      when (i_CLR = '1' or r_STATE = s_IDLE) else
-                r_PES_ADDR + std_logic_vector(to_unsigned(1, r_PES_ADDR'length)) 
-                      when (rising_edge(i_CLK) and r_STATE = s_PES_INC_ADDR) else
-                r_PES_ADDR;
+  w_RST_WEIGHT_ADDR <= '1' when (i_CLR = '1' or r_STATE = s_IDLE) else '0';
+  w_INC_WEIGHT_ADDR <= '1' when (r_STATE = s_PES_INC_ADDR) else '0';
+  u_WEIGHTS_ADDR : counter
+              generic map (WEIGHTS_ADDRESS_WIDTH, 1)
+              port map 
+              (
+                i_CLK       => i_CLK,
+                i_RESET     => w_RST_WEIGHT_ADDR,
+                i_INC       => w_INC_WEIGHT_ADDR,
+                i_RESET_VAL => (others => '0'),
+                o_Q         => r_WEIGHTS_ADDR
+              ); 
   
-  -- enderecametno do bias
-  r_BIAS_ADDR <= (others => '0') when (i_CLR = '1' or r_STATE = s_IDLE) else
-                r_BIAS_ADDR + "00001" when (rising_edge(i_CLK) and r_STATE = s_BIAS_INC_ADDR) else
-                r_BIAS_ADDR;
 
+  -- enderecametno do bias
+  w_RST_BIAS_ADDR <= '1' when (i_CLR = '1' or r_STATE = s_IDLE) else '0';
+  w_INC_BIAS_ADDR <= '1' when (r_STATE = s_BIAS_INC_ADDR) else '0';
+  u_BIAS_ADDR : counter
+              generic map (BIAS_ADDRESS_WIDTH, 1)
+              port map 
+              (
+                i_CLK       => i_CLK,
+                i_RESET     => w_RST_BIAS_ADDR,
+                i_INC       => w_INC_BIAS_ADDR,
+                i_RESET_VAL => (others => '0'),
+                o_Q         => r_BIAS_ADDR
+              ); 
+  
     
   -- reset contador pesos
-  w_RST_NUM_PES <= '1' when (r_STATE = s_PES_VERIFY_ADDR and r_NUM_PES_FILTER > NUM_PES_FILTER_CHA) else '0';
-  
+  w_RST_NUM_PES <= '1' when ((r_STATE = s_PES_VERIFY_ADDR and r_NUM_PES_FILTER > NUM_PES_FILTER_CHA) or
+                              i_CLR = '1' or r_STATE = s_IDLE) else '0';
+  w_INC_NUM_PES <= '1' when (r_STATE = s_PES_INC_ADDR) else '0';
   -- conta pesos por filtro
-  r_NUM_PES_FILTER <= (others => '0') when (i_CLR = '1' or r_STATE = s_IDLE or w_RST_NUM_PES = '1') else
-                r_NUM_PES_FILTER + "00001" when (rising_edge(i_CLK) and r_STATE = s_PES_INC_ADDR) else
-                r_NUM_PES_FILTER;
+  u_PES_FILTER_CNTR : counter
+              generic map (5, 1)
+              port map 
+              (
+                i_CLK       => i_CLK,
+                i_RESET     => w_RST_NUM_PES,
+                i_INC       => w_INC_NUM_PES,
+                i_RESET_VAL => (others => '0'),
+                o_Q         => r_NUM_PES_FILTER
+              ); 
   
-  -- endereco do NC para carregar pesos     
-  r_NC_ADDR <= (others => '0') when (i_CLR = '1' or r_STATE = s_IDLE) else
-                r_NC_ADDR + "00001" when (rising_edge(i_CLK) and  r_NUM_PES_FILTER = NUM_PES_FILTER_CHA and r_STATE = s_PES_INC_ADDR) else
-                r_NC_ADDR;
+  
+  -- endereco do NC para carregar pesos  
+  w_RST_NC_ADDRESS <= '1' when (i_CLR = '1' or r_STATE = s_IDLE) else '0';
+  w_INC_NC_ADDRESS <= '1' when (r_NUM_PES_FILTER = NUM_PES_FILTER_CHA and r_STATE = s_PES_INC_ADDR) else '0';
+  u_NC_ADDRESS : counter
+              generic map (NC_ADDRESS_WIDTH, 1)
+              port map 
+              (
+                i_CLK       => i_CLK,
+                i_RESET     => w_RST_NC_ADDRESS,
+                i_INC       => w_INC_NC_ADDRESS,
+                i_RESET_VAL => (others => '0'),
+                o_Q         => r_NC_ADDR
+              ); 
+
   
   -- reseta contador de colunas
-  w_RST_PES_COL_CNTR <= '1' when (r_STATE = s_PES_VERIFY_ADDR and r_PES_COL_CNTR = "11") else '0';
-  
-  -- conta colunas
-  r_PES_COL_CNTR <= (others => '0') when (i_CLR = '1' or w_RST_PES_COL_CNTR = '1') else
-                r_PES_COL_CNTR + "01" when (rising_edge(i_CLK) and  r_STATE = s_PES_INC_ADDR) else
-                r_PES_COL_CNTR;
-
+  w_RST_WEIGHTS_COL_CNTR <= '1' when (i_CLR = '1' or (r_STATE = s_PES_VERIFY_ADDR and r_PES_COL_CNTR = "11")) else '0';
+  w_INC_WEIGHTS_COL_CNTR <= '1' when (r_STATE = s_PES_INC_ADDR) else '0';  
+  -- conta colunas de pesos
+  u_WEIGHTS_COL_CNTR : counter
+              generic map (2, 1)
+              port map 
+              (
+                i_CLK       => i_CLK,
+                i_RESET     => w_RST_WEIGHTS_COL_CNTR,
+                i_INC       => w_INC_WEIGHTS_COL_CNTR,
+                i_RESET_VAL => (others => '0'),
+                o_Q         => r_PES_COL_CNTR
+              );
+                            
+              
   -- reset contador de linha
-  w_RST_PES_ROW_CNTR <= '1' when (r_STATE = s_PES_VERIFY_ADDR and r_PES_ROW_CNTR = "11") else '0';
-  
+  w_RST_WEIGHTS_ROW_CNTR <= '1' when ((i_CLR = '1' or r_STATE = s_IDLE) or 
+                                (r_STATE = s_PES_VERIFY_ADDR and r_PES_ROW_CNTR = "11")) else '0';
+  w_INC_WEIGHTS_ROW_CNTR <= '1' when (r_PES_COL_CNTR = "10" and r_STATE = s_PES_INC_ADDR) else '0';  
   -- conta linhas
-  r_PES_ROW_CNTR <= (others => '0') when (i_CLR = '1' or r_STATE = s_IDLE or w_RST_PES_ROW_CNTR = '1') else
-                r_PES_ROW_CNTR + "01" when (rising_edge(i_CLK) and r_PES_COL_CNTR = "10" and r_STATE = s_PES_INC_ADDR) else
-                r_PES_ROW_CNTR;
+  u_WEIGHTS_ROW_CNTR : counter
+              generic map (2, 1)
+              port map 
+              (
+                i_CLK       => i_CLK,
+                i_RESET     => w_RST_WEIGHTS_ROW_CNTR,
+                i_INC       => w_INC_WEIGHTS_ROW_CNTR,
+                i_RESET_VAL => (others => '0'),
+                o_Q         => r_PES_ROW_CNTR
+              );
+  
+  ---------------------------------------------------------------
   
   
   -- sinal para rom de pesos
   o_PES_READ_ENA  <= '1' when (r_STATE = s_PES_READ_ENA) else '0';
-  o_PES_READ_ADDR <= r_PES_ADDR;
+  o_PES_READ_ADDR <= r_WEIGHTS_ADDR;
     
   -- SINAL PARA ROM DE BIAS E SCALES
   o_BIAS_READ_ENA  <= '1' when (r_STATE = s_BIAS_READ_ENA) else '0';

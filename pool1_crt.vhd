@@ -84,7 +84,7 @@ architecture arch of pool1_crt is
     generic 
     (    
       DATA_WIDTH : integer := 8;   
-      STEP : std_logic_vector := "00000001"
+      STEP : integer := 1
     );
     port 
     (
@@ -161,7 +161,7 @@ begin
   w_RST_IN_ADDR <= '1' when (i_CLR = '1') else '0';     
   -- contador de endereco
   u_INPUT_ADDR : counter 
-              generic map (10, "0000000001")
+              generic map (ADDR_WIDTH, 1)
               port map 
               (
                 i_CLK       => i_CLK,
@@ -193,7 +193,7 @@ begin
   
   -- contador de endereco
   u_OUTPUT_ADDR : counter 
-              generic map (10, "0000000001")
+              generic map (ADDR_WIDTH, 1)
               port map 
               (
                 i_CLK       => i_CLK,

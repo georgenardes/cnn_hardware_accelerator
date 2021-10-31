@@ -13,7 +13,8 @@ entity pool1 is
   generic (    
     DATA_WIDTH   : integer := 8;
     ADDR_WIDTH   : integer := 10;
-    NUM_CHANNELS : integer := 6
+    NUM_CHANNELS : integer := 6;
+    MAX_ADDR : std_logic_vector
   );
   port (
     i_CLK       : in std_logic;
@@ -22,7 +23,7 @@ entity pool1 is
     o_READY     : out std_logic;
     
     -- sinais para buffer de entrada
-    i_IN_DATA        : t_POOL1_IN  := (others => (others => '0')) ;
+    i_IN_DATA        : t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0')) ;
     i_IN_WRITE_ENA   : in std_logic;
     i_IN_WRITE_ADDR  : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
     i_IN_SEL_LINE    : in std_logic_vector (1 downto 0);
@@ -30,7 +31,7 @@ entity pool1 is
     -- sinais para buffer de saida
     i_OUT_READ_ADDR0  : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
     
-    o_BUFFER_OUT : out t_POOL1_OUT := (others => (others => '0'))    
+    o_BUFFER_OUT : out t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'))    
   );
 end pool1;
 
@@ -69,7 +70,7 @@ architecture arch of pool1 is
       i_CLK       : in  std_logic;
       i_CLR       : in  std_logic; 
       i_PIX_SHIFT_ENA : in STD_LOGIC;
-      i_IN_DATA      : t_POOL1_IN  := (others => (others => '0'));
+      i_IN_DATA      : t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));
       i_IN_READ_ENA  : in std_logic;
       i_IN_WRITE_ENA : in std_logic;
       i_IN_SEL_LINE  : in std_logic_vector (1 downto 0);
@@ -81,7 +82,7 @@ architecture arch of pool1 is
       i_OUT_SEL_LINE    : in std_logic_vector (1 downto 0);
       i_OUT_READ_ADDR0  : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
       i_OUT_WRITE_ADDR  : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');      
-      o_BUFFER_OUT : out t_POOL1_OUT := (others => (others => '0'))    
+      o_BUFFER_OUT : out t_ARRAY_OF_LOGIC_VECTOR(0 to NUM_CHANNELS-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'))
     );
   end component;
 
@@ -100,7 +101,7 @@ begin
                   generic map (
                     DATA_WIDTH => DATA_WIDTH,
                     ADDR_WIDTH => ADDR_WIDTH,
-                    MAX_ADDR   => "0110000000"
+                    MAX_ADDR   => MAX_ADDR
                   )
                   port map (
                     i_CLK            => i_CLK  ,

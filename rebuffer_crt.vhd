@@ -30,11 +30,12 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
+use ieee.numeric_std.all;
 
 -- Entity
 entity rebuffer_crt is
   generic (
-    ADDR_WIDTH : integer := 8;
+    ADDR_WIDTH : integer := 10;
     DATA_WIDTH : integer := 8;    
     NUM_BUFF   : std_logic_vector(1 downto 0)   := "11";    -- 3 buffers
     IFMAP_WIDTH : std_logic_vector(5 downto 0)  := "011000";  -- 24
@@ -98,6 +99,11 @@ architecture arch of rebuffer_crt is
   signal r_STATE : t_STATE; -- state register
   signal w_NEXT : t_STATE; -- next state 
   
+  
+  -- passo de 1 com largura generica para contador
+  constant c_STEP_1 : std_logic_vector(ADDR_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(1, ADDR_WIDTH));
+  
+  
   ------------------
   -- conta linhas 
   signal r_ROW_CNT : std_logic_vector (5 downto 0) := (others => '0'); -- maximo 64 linhas (altura imagens)
@@ -108,14 +114,14 @@ architecture arch of rebuffer_crt is
   
   ------------------
   -- contador endereco entrada
-  signal r_READ_ADDR : std_logic_vector (9 downto 0) := (others => '0'); -- maximo 1024 enderecos
+  signal r_READ_ADDR : std_logic_vector (ADDR_WIDTH-1 downto 0) := (others => '0'); -- maximo 1024 enderecos
   ------------------
   
   ------------------
   -- contadores para cada buffer de saida
-  signal r_BUFF_0 :  std_logic_vector (9 downto 0) := (others => '0'); -- maximo 1024 enderecos
-  signal r_BUFF_1 :  std_logic_vector (9 downto 0) := (others => '0'); -- maximo 1024 enderecos
-  signal r_BUFF_2 :  std_logic_vector (9 downto 0) := (others => '0'); -- maximo 1024 enderecos
+  signal r_BUFF_0 :  std_logic_vector (ADDR_WIDTH-1 downto 0) := (others => '0'); -- maximo 1024 enderecos
+  signal r_BUFF_1 :  std_logic_vector (ADDR_WIDTH-1 downto 0) := (others => '0'); -- maximo 1024 enderecos
+  signal r_BUFF_2 :  std_logic_vector (ADDR_WIDTH-1 downto 0) := (others => '0'); -- maximo 1024 enderecos
   ------------------
     
   -- seleciona buffer para incrementar
@@ -282,11 +288,11 @@ begin
                 (r_SEL_BUFF_LINE + "01") 
                   when (rising_edge(i_CLK) and r_STATE = s_INC_ROW_CNTR) else 
                 r_SEL_BUFF_LINE;
-                
+
   -- incrementa endereco de buffer de entrada
   r_READ_ADDR <=  (others => '0')           
                     when (i_CLR = '1' or r_STATE = s_IDLE) else
-                  (r_READ_ADDR + "0000000001") 
+                  (r_READ_ADDR + c_STEP_1) 
                     when (rising_edge(i_CLK) and r_STATE = s_DADO_INPUT) else 
                   r_READ_ADDR;
   
@@ -294,21 +300,21 @@ begin
   -- incrementa endereco de primeiro buffer de saida
   r_BUFF_0 <= (others => '0')           
                 when (i_CLR = '1' or r_STATE = s_IDLE) else
-              (r_BUFF_0 + "0000000001") 
+              (r_BUFF_0 + c_STEP_1) 
                 when (rising_edge(i_CLK) and r_STATE = s_BUFF_LINE0) else 
               r_BUFF_0;
   
   -- incrementa endereco de segundo buffer de saida
   r_BUFF_1 <= (others => '0')           
                 when (i_CLR = '1' or r_STATE = s_IDLE) else
-              (r_BUFF_1 + "0000000001") 
+              (r_BUFF_1 + c_STEP_1) 
                 when (rising_edge(i_CLK) and r_STATE = s_BUFF_LINE1) else 
               r_BUFF_1;
   
   -- incrementa endereco de segundo buffer de saida
   r_BUFF_2 <= (others => '0')           
                 when (i_CLR = '1' or r_STATE = s_IDLE) else
-              (r_BUFF_2 + "0000000001") 
+              (r_BUFF_2 + c_STEP_1) 
                 when (rising_edge(i_CLK) and r_STATE = s_BUFF_LINE2) else 
               r_BUFF_2;
   

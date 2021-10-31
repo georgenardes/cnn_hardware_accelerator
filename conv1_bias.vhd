@@ -42,12 +42,18 @@ USE altera_mf.altera_mf_components.all;
 
 -- armazena bias e scale down multipliers
 ENTITY conv1_bias IS
+  GENERIC 
+  (
+    init_file_name : STRING := "conv1_bias.mif";
+    DATA_WIDTH : INTEGER := 32;
+    DATA_DEPTH : INTEGER := 5
+  );
 	PORT
 	(
-		address		: IN STD_LOGIC_VECTOR (4 DOWNTO 0);
+		address		: IN STD_LOGIC_VECTOR (DATA_DEPTH-1 DOWNTO 0);
 		clken		: IN STD_LOGIC  := '1';
 		clock		: IN STD_LOGIC  := '1';
-		q		: OUT STD_LOGIC_VECTOR (31 DOWNTO 0)
+		q		: OUT STD_LOGIC_VECTOR (DATA_WIDTH-1 DOWNTO 0)
 	);
 END conv1_bias;
 
@@ -64,16 +70,16 @@ BEGIN
 		address_aclr_a => "NONE",
 		clock_enable_input_a => "NORMAL",
 		-- clock_enable_output_a => "NORMAL",
-		init_file => "conv1_bias.mif",
+		init_file => init_file_name,
 		intended_device_family => "Cyclone V",
 		lpm_hint => "ENABLE_RUNTIME_MOD=NO",
 		lpm_type => "altsyncram",
-		numwords_a => 32,
+		numwords_a => 2**DATA_DEPTH,
 		operation_mode => "ROM",
 		-- outdata_aclr_a => "NONE",
 		-- outdata_reg_a => "CLOCK0",
 		ram_block_type => "MLAB",
-		widthad_a => 5,
+		widthad_a => DATA_DEPTH,
 		width_a => 32,
 		width_byteena_a => 1
 	)

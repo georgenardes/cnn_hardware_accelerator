@@ -1,41 +1,3 @@
-
-
-
-------------------------------------------------------
--- Mux 6x1 DE 32 BITS 
--- 01/10/2021
--- George
--- R1
-------------------------------------------------------
-LIBRARY ieee;
-USE ieee.std_logic_1164.ALL;
-USE ieee.numeric_std.ALL; 
-library work;
-use work.conv1_pkg.all;
-
-ENTITY mux_conv1 is      
-  generic (NC_SEL_WIDTH : integer := 2);
-  PORT 
-  (    
-    -- addr : in myarray_t(NUM_RAMS-1 downto 0)(A_WID-1 downto 0); 
-    -- type t_MUX_I_VET is array (0 to c_CONV1_C - 1 + 1 ) of STD_LOGIC_VECTOR(c_CONV1_O_DATA_WIDTH-1 downto 0);    
-    -- i_A   : IN      t_MUX_I_VET := (others => (others => '0'));
-    i_A   : IN  myarray_t(0 to c_CONV1_C)(31 downto 0) := (others => (others => '0'));
-    i_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0); -- 000 00 
-    o_Q   : OUT std_logic_vector(31 DOWNTO 0)
-  );
-END mux_conv1;
-ARCHITECTURE arch OF mux_conv1 IS
-  signal w_INDEX : integer := 0;
-
-BEGIN  
-  w_INDEX <= to_integer(unsigned(i_SEL));
-  o_Q <= i_A(w_INDEX);
-END arch;
-------------------------------------------------------
-
-
-
 -- Conv1 Opercional
 
 -------------------------------
@@ -55,7 +17,6 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
 library work;
-use work.conv1_pkg.all;
 use work.types_pkg.all;
 
 entity conv1_op is
@@ -74,7 +35,8 @@ entity conv1_op is
     WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
     BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
     DATA_WIDTH : integer := 8;
-    ADDR_WIDTH : integer := 10
+    ADDR_WIDTH : integer := 10;
+    SCALE_SHIFT : t_ARRAY_OF_INTEGER
   );
   port 
   (
@@ -88,7 +50,7 @@ entity conv1_op is
     -- habilita leitura
     i_IN_READ_ENA  : in std_logic;
     -- dado de entrada
-    i_IN_DATA      : in  t_CONV1_IN;
+    i_IN_DATA      : in  t_ARRAY_OF_LOGIC_VECTOR(0 to C-1)(DATA_WIDTH-1 downto 0);
     -- habilita escrita    
     i_IN_WRITE_ENA : in std_logic;    
     -- linha de buffer selecionada
@@ -104,14 +66,10 @@ entity conv1_op is
     ---------------------------------
     ---------------------------------
     
-    
-    -- sinal para rom de pesos
-    -- i_PES_READ_ENA  : in std_logic; 
-    -- i_PES_READ_ADDR : in std_logic_vector(7 downto 0);  -- bits para enderecamento ROM de pesos
+    -- sinal para rom de pesos    
     i_PES : in std_logic_vector(7 downto 0);
     
-    -- SINAL PARA ROM DE BIAS E SCALES    
-    -- i_BIAS_READ_ENA  : in std_logic; 
+    -- SINAL PARA ROM DE BIAS E SCALES        
     i_BIAS_WRITE_ADDR : IN STD_LOGIC_VECTOR (BIAS_ADDRESS_WIDTH-1 DOWNTO 0);
     i_BIAS : in std_logic_vector (31 downto 0);
     
@@ -157,7 +115,7 @@ entity conv1_op is
     -- reset endreco de saida
     i_OUT_CLR_ADDR : in std_logic;
     -- saida dos buffers de saida
-    o_OUT_DATA : out t_CONV1_OUT
+    o_OUT_DATA : out t_ARRAY_OF_LOGIC_VECTOR(0 to M-1)(DATA_WIDTH-1 downto 0)
     ---------------------------------
     ---------------------------------
 
@@ -285,16 +243,19 @@ architecture arch of conv1_op is
   -------------------------------
   -- Mux conv 1 
   -------------------------------     
-  component mux_conv1 is  
-    generic (NC_SEL_WIDTH : integer := 2);
+  component generic_multiplexer is      
+    generic 
+    (
+      NC_SEL_WIDTH : integer := 2;
+      DATA_WIDTH : integer := 32
+    );
     PORT 
-    (  
-      -- i_A   : IN  t_MUX_I_VET;
-      i_A   : IN  myarray_t(0 to c_CONV1_C)(31 downto 0) := (others => (others => '0'));
-      i_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0); 
+    (    
+      i_A   : IN  t_ARRAY_OF_LOGIC_VECTOR(0 to (2**NC_SEL_WIDTH)-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));
+      i_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0);
       o_Q   : OUT std_logic_vector(31 DOWNTO 0)
     );
-  end component;
+  END component;
   ------------------------------- 
   
   
@@ -347,6 +308,26 @@ architecture arch of conv1_op is
   end component;
   -------------------------------
   
+  --- CONTADOR 
+  component counter is
+    generic 
+    (    
+      DATA_WIDTH : integer := 8;   
+      STEP : integer := 1
+    );
+    port 
+    (
+      i_CLK       : in std_logic;
+      i_RESET     : in std_logic;
+      i_INC       : in std_logic;
+      i_RESET_VAL : in std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+      o_Q         : out std_logic_vector(DATA_WIDTH-1 downto 0)
+    );
+  end component;
+
+  
+  
+  
   -- sinal one-hot para habilitar escrita dos pesos nos NCs
   signal w_NC_PES_ADDR : std_logic_vector (NC_OHE_WIDTH - 1 downto 0);
   
@@ -354,19 +335,22 @@ architecture arch of conv1_op is
   signal w_BIAS_SCALE_ADDR : std_logic_vector (BIAS_OHE_WIDTH-1 downto 0);   
   
   -- saida de todos NCs
-  signal w_o_NC : t_NC_O_VET;
+  -- signal w_o_NC : t_NC_O_VET;
+  signal w_o_NC : t_ARRAY_OF_LOGIC_VECTOR(0 to (C*M) - 1)(31 downto 0);
   
   -- saida mux NC
-  signal w_o_MUX_NC : t_MUX_O_VET;  
+  -- signal w_o_MUX_NC : t_MUX_O_VET;  
+  signal w_o_MUX_NC : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
   
   -- saida somador acumulador entre canais de filtros
-  signal w_o_ADD : t_MUX_O_VET;  
+  signal w_o_ADD : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
   
   -- saida soma bias + saida acumulador
-  signal w_o_BIAS_ACC : t_MUX_O_VET;  
+  signal w_o_BIAS_ACC : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
   
   -- contador endereco saida
-  signal r_OUT_ADDR : std_logic_vector(9 downto 0) := (others => '0'); 
+  signal r_OUT_ADDR : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0'); 
+  signal w_RST_OUT_ADDR : std_logic;
   
   -- roteador de pixels (configuração linha de buffer para linha de shift-registers)
   signal w_CONFIG0, w_CONFIG1 : std_logic;
@@ -375,16 +359,14 @@ architecture arch of conv1_op is
   signal w_BIAS_REG_ENA : std_logic_vector(M-1 downto 0);    
   
   -- saida registradores bias
-  signal w_o_BIAS_REG : t_MUX_O_VET := (others => (others => '0')); 
+  signal w_o_BIAS_REG : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
   
   -- entrada one-hot para reg scale
   signal w_SCALE_REG_ENA : std_logic_vector(M-1 downto 0); 
+      
+  -- saida registradores scale
+  signal w_o_SCALE_REG : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
   
-  -- saida da ROM bias
-  signal w_SCALE : std_logic_vector(c_CONV1_O_DATA_WIDTH-1 downto 0); 
-    
-  -- saida registradores bias
-  signal w_o_SCALE_REG : t_MUX_O_VET := (others => (others => '0')); 
     
 begin
   
@@ -413,8 +395,8 @@ begin
               generic map 
               (
                 NUM_BLOCKS => 3,    -- tres blocos por buffer
-                DATA_WIDTH => 8,    
-                ADDR_WIDTH => 10   -- 2^10 enderecos                
+                DATA_WIDTH => DATA_WIDTH,    
+                ADDR_WIDTH => ADDR_WIDTH   -- 2^10 enderecos                
               )
               port map 
               (
@@ -455,9 +437,9 @@ begin
       for j in 0 to M-1 generate
       
         -- NC pixel de saida
-        signal w_o_PIX       :  STD_LOGIC_VECTOR (32 - 1 downto 0) := (others => '0');        
-        signal w_cout, w_overflow, w_underflow  : std_logic;
-				signal w_PES_SHIFT_ENABLE : std_logic;                       
+        signal w_o_PIX       :  STD_LOGIC_VECTOR (31 downto 0) := (others => '0');        
+        signal w_cout, w_overflow, w_underflow  : std_logic := '0';
+				signal w_PES_SHIFT_ENABLE : std_logic := '0';                       
 
       begin
 		
@@ -482,7 +464,7 @@ begin
               
       -- registradores de saida para os NCs
       REGX : registrador 
-              generic map (c_CONV1_O_DATA_WIDTH)
+              generic map (32)
               port map 
               (
                 i_CLK,
@@ -500,13 +482,12 @@ begin
   GEN_FILTER_OUT: 
   for i in 0 to M-1 generate
     
-    -- entrada MUX saída NCs
-    -- signal w_MUX_I_VET : t_MUX_I_VET := (others => (others => '0'));    
-    signal w_MUX_I_VET : myarray_t(0 to c_CONV1_C)(31 downto 0) := (others => (others => '0'));    
-    
+    -- entrada MUX saída NCs      
+    signal w_MUX_I_VET : t_ARRAY_OF_LOGIC_VECTOR(0 to (2**NC_SEL_WIDTH)-1)(31 downto 0) := (others => (others => '0'));
+        
     -- sinais para somadores
     signal w_COUT, w_OVERFLOW, w_UNDERFLOW : std_logic;
-    signal w_ADD_OUT : STD_LOGIC_VECTOR(c_CONV1_O_DATA_WIDTH-1 downto 0);
+    signal w_ADD_OUT : STD_LOGIC_VECTOR(31  downto 0);
     
     -- sinal de saida relu
     signal w_RELU_OUT : STD_LOGIC_VECTOR(7 downto 0);       
@@ -533,8 +514,8 @@ begin
     
     
     -- mux para soma dos valores de saida
-    MUXX : mux_conv1 
-                generic map (NC_SEL_WIDTH)
+    MUXX : generic_multiplexer 
+                generic map (NC_SEL_WIDTH, 32)
                 port map
                 (
                   i_A  => w_MUX_I_VET,
@@ -557,7 +538,7 @@ begin
     
     -- registrador para acumular saida dos canais de um NC
     REGX : registrador 
-            generic map (c_CONV1_O_DATA_WIDTH)
+            generic map (32)
             port map 
             (
               i_CLK,
@@ -572,7 +553,7 @@ begin
 
     -- registrador de BIAS    
     BIAS_REGX : registrador 
-            generic map (c_CONV1_O_DATA_WIDTH)
+            generic map (32)
             port map 
             (
               i_CLK,
@@ -587,7 +568,7 @@ begin
 
     -- registrador de scale down    
     SCALE_REGX : registrador 
-            generic map (c_CONV1_O_DATA_WIDTH)
+            generic map (32)
             port map 
             (
               i_CLK,
@@ -600,13 +581,12 @@ begin
     -- adiciona saida acumulador + bias
     w_o_BIAS_ACC(i) <= w_o_ADD(i) + w_o_BIAS_REG(i); 
     
-    -- scale down (32*32 = 64)
-    -- multiplex entre 0 e valor do scale down selecionado pelo bit de sinal
-    -- !! MULTIPLICAÇÃO ESTÁ INFERINDO NUM DE 40 BITS EM VEZ DE 64 !!
+    -- scale down (32*32 = 64bits)
+    -- multiplex entre 0 e valor do scale down selecionado pelo bit de sinal    
     w_o_SCALE_DOWN <= (others => '0') when (w_o_BIAS_ACC(i)(31) = '1') else w_o_BIAS_ACC(i) * w_o_SCALE_REG(i);
         
     -- cast para 32 bits
-    w_o_CAST(31 downto c_SCALE_SHIFT(i)) <= w_o_SCALE_DOWN(63 downto 32+c_SCALE_SHIFT(i));    
+    w_o_CAST(31 downto SCALE_SHIFT(i)) <= w_o_SCALE_DOWN(63 downto 32+SCALE_SHIFT(i));    
     
     
     -- bloco RELU
@@ -615,7 +595,7 @@ begin
               port map
               (
                 -- pixel de entrada
-                i_PIX => w_o_CAST(c_SCALE_SHIFT(i)+7 downto c_SCALE_SHIFT(i)),
+                i_PIX => w_o_CAST(SCALE_SHIFT(i)+7 downto SCALE_SHIFT(i)),
                 -- pixel de saida
                 o_PIX => w_RELU_OUT
               );
@@ -625,8 +605,8 @@ begin
               generic map 
               (
                 NUM_BLOCKS => 1,    
-                DATA_WIDTH => 8,    
-                ADDR_WIDTH => 10                
+                DATA_WIDTH => DATA_WIDTH,    
+                ADDR_WIDTH => ADDR_WIDTH
               )
               port map 
               (
@@ -669,10 +649,24 @@ begin
           );
   
   
+  
+  w_RST_OUT_ADDR <= '1' when (i_CLR = '1' or i_OUT_CLR_ADDR = '1') else '0';
+  
   -- contador de endereco de saida 
-  r_OUT_ADDR <= (others => '0') when (i_CLR = '1' or i_OUT_CLR_ADDR = '1') else 
-                (r_OUT_ADDR + "0000000001") when (rising_edge(i_CLK) and i_OUT_INC_ADDR = '1') else
-                r_OUT_ADDR;
+  u_OUT_ADDR : counter 
+            generic map
+            (    
+              DATA_WIDTH => ADDR_WIDTH,  
+              STEP => 1
+            )
+            port map
+            (
+              i_CLK       => i_CLK,
+              i_RESET     => w_RST_OUT_ADDR,
+              i_INC       => i_OUT_INC_ADDR,
+              i_RESET_VAL => (others => '0'),
+              o_Q         => r_OUT_ADDR
+            );
   
 end arch;
 
