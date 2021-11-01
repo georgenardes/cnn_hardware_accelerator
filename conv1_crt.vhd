@@ -40,6 +40,7 @@ entity conv1_crt is
     i_CLR           : in  std_logic;
     i_GO            : in  std_logic; -- inicia maq
     i_LOAD          : in  std_logic; -- carrega pesos
+    o_LOADED        : out std_logic;
     o_READY         : out std_logic; -- fim maq
     
     ---------------------------------
@@ -119,6 +120,7 @@ architecture arch of conv1_crt is
     s_BIAS_READ_ENA, -- habilita leitura BIAS
     s_BIAS_WRITE_ENA, -- habilita escrita BIAS
     s_BIAS_INC_ADDR, -- incrementa endereco de BIAS
+    s_LOADED , -- sinaliza fim do carregamento dos pesos
     
     s_LOAD_PIX,   -- carrega pixels    
     s_REG_PIX,  -- registra pixels
@@ -229,11 +231,16 @@ architecture arch of conv1_crt is
   signal r_BIAS_ADDR : std_logic_vector(BIAS_ADDRESS_WIDTH-1 downto 0);
   signal w_RST_BIAS_ADDR       : std_logic;
   signal w_INC_BIAS_ADDR       : std_logic;        
-        
+                
   -- endereco do NC para carregar pesos     
   signal r_NC_ADDR : std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
   signal w_RST_NC_ADDRESS        : std_logic;
   signal w_INC_NC_ADDRESS        : std_logic; 
+  
+  signal r_LOADED : std_logic := '0';
+  
+  -- valor maximo para NC
+  constant c_NC_MAX : std_logic_vector(NC_SEL_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(C, NC_SEL_WIDTH));
   
 begin
 
@@ -280,8 +287,11 @@ begin
         if (r_BIAS_ADDR <= LAST_BIAS) then 
           w_NEXT <= s_BIAS_READ_ENA;
         else
-          w_NEXT <= s_IDLE;
+          w_NEXT <= s_LOADED;
         end if;        
+     
+      when s_LOADED => -- sinaliza fim do carregamento
+        w_NEXT <= s_IDLE;
      
       when s_BIAS_READ_ENA => -- havilita leitura de BIAS
         w_NEXT <= s_BIAS_WRITE_ENA;
@@ -306,7 +316,7 @@ begin
         w_NEXT <= s_ACC_FIL_CH;
 
       when s_ACC_FIL_CH => -- acumula canais de um filtro
-        if (r_NC_O_SEL = std_logic_vector(to_unsigned(C, r_NC_O_SEL'length))) then -- enquanto < 3
+        if (r_NC_O_SEL = c_NC_MAX) then -- enquanto < C
           w_NEXT <= s_WRITE_OUT;
         else 
           w_NEXT <= s_ACC_FIL_CH;          
@@ -648,5 +658,12 @@ begin
   
   -- sinaliza fim maq estado
   o_READY <= '1' when (r_STATE = s_END) else '0';
+  
+  
+  -- sinaliza fim carregamento
+  r_LOADED <= '0' when (i_CLR = '1' or i_LOAD = '1') else
+              '1' when (rising_edge(i_CLK) and r_STATE = s_LOADED) else
+              r_LOADED;
+  o_LOADED <= r_LOADED ;
   
 end arch;

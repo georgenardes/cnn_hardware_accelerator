@@ -23,7 +23,7 @@ end counter;
 
 architecture arch of counter is 
   
-  signal r_CNT : std_logic_vector (DATA_WIDTH-1 downto 0);  
+  signal r_CNT : std_logic_vector (DATA_WIDTH-1 downto 0) := (others => '0');  
   
 begin
   

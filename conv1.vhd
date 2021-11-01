@@ -45,6 +45,7 @@ entity conv1 is
     i_CLR       : in STD_LOGIC;
     i_GO        : in STD_LOGIC;
     i_LOAD      : in std_logic;
+    o_LOADED    : out std_logic;
     o_READY     : out std_logic;
     
     -- sinais para comunicação com rebuffers
@@ -158,6 +159,7 @@ architecture arch of conv1 is
       i_CLR           : in  std_logic;
       i_GO            : in  std_logic; -- inicia maq
       i_LOAD          : in  std_logic; -- carrega pesos
+      o_LOADED        : out std_logic;
       o_READY         : out std_logic; -- fim maq
       o_IN_READ_ENA   : out  std_logic;
       o_IN_READ_ADDR0 : out std_logic_vector (ADDR_WIDTH - 1 downto 0);
@@ -373,6 +375,7 @@ begin
                 i_CLR           => i_CLR,
                 i_GO            => i_GO,
                 i_LOAD          => i_LOAD,
+                o_LOADED        => o_LOADED,
                 o_READY         => o_READY,
                 o_IN_READ_ENA   => w_IN_READ_ENA,
                 o_IN_READ_ADDR0 => w_IN_READ_ADDR0 ,
