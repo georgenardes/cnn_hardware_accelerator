@@ -25,6 +25,9 @@ architecture arch of cnn_top_tb is
       i_CLR       : in STD_LOGIC;
       i_GO        : in STD_LOGIC;
       i_LOAD      : in std_logic;
+      i_ADDR      : in std_logic_vector(9 downto 0);
+      i_SEL		    : in std_logic_vector(6 downto 0) := (others => '0');
+      o_DATA      : out std_logic_vector(7 downto 0);
       o_LOADED    : out std_logic;
       o_READY     : out std_logic
     );
@@ -34,6 +37,10 @@ architecture arch of cnn_top_tb is
   signal w_CLK       : STD_LOGIC;
   signal w_CLR       : STD_LOGIC;
   signal w_GO        : STD_LOGIC;
+  signal w_ADDR      : std_logic_vector(9 downto 0) := (others => '0');
+  signal w_SEL		   : std_logic_vector(6 downto 0) := (others => '0');
+	signal w_DATA      : std_logic_vector(7 downto 0);
+      
   signal w_LOAD      : std_logic;
   signal w_LOADED    : std_logic;
   signal w_READY     : std_logic;
@@ -47,6 +54,9 @@ begin
             i_CLR    => w_CLR  ,
             i_GO     => w_GO   ,
             i_LOAD   => w_LOAD ,
+            i_ADDR   => w_ADDR ,
+            i_SEL	   => w_SEL	,
+            o_DATA   => w_DATA ,
             o_LOADED => w_LOADED,
             o_READY  => w_READY
           );
