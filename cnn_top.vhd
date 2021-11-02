@@ -47,7 +47,7 @@ architecture arch of cnn_top is
   constant CONV1_BIAS_ADDRESS_WIDTH : integer := 6; -- numero de bits para enderecar registradores de bias e scale
   constant CONV1_SCALE_SHIFT  : t_ARRAY_OF_INTEGER(0 to CONV1_M-1) := (8, 8, 7, 8, 8, 9); --num bits to shift
   constant CONV1_WEIGHTS_FILE_NAME     : string := "conv1.mif";
-  constant CONV1_BIAS_FILE_NAME        : string := "conv1_bias.mif";
+  constant CONV1_BIAS_FILE_NAME        : string := "conv1_bias.mif";                      
   ------------------------------------------------------------------
   constant CONV2_H : integer := 18; -- iFMAP Height 
   constant CONV2_W : integer := 14; -- iFMAP Width 
@@ -255,9 +255,9 @@ architecture arch of cnn_top is
   
     
   -------- SINAIS CONV1
-  signal w_COVN1_GO        : STD_LOGIC;
-  signal w_COVN1_LOADED    : std_logic;
-  signal w_COVN1_READY     : std_logic;  
+  signal w_CONV1_GO        : STD_LOGIC;
+  signal w_CONV1_LOADED    : std_logic;
+  signal w_CONV1_READY     : std_logic;  
   --------------------------------------------------  
   
   -- saida dos buffers de saida da conv1
@@ -302,7 +302,7 @@ architecture arch of cnn_top is
   -- sinais conv2
   signal w_CONV2_DATA_IN : t_ARRAY_OF_LOGIC_VECTOR(0 to 5)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));  
   signal w_CONV2_DATA_OUT : t_ARRAY_OF_LOGIC_VECTOR(0 to 15)(DATA_WIDTH-1 downto 0) := (others => (others => '0')); 
-  signal w_COVN2_LOADED    : std_logic;
+  signal w_CONV2_LOADED    : std_logic;
   signal w_CONV2_READY : std_logic;
   
   -- sinais rebuffer4
@@ -343,7 +343,7 @@ architecture arch of cnn_top is
   -- sinais conv3
   signal w_CONV3_DATA_IN : t_ARRAY_OF_LOGIC_VECTOR(0 to 15)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));  
   signal w_CONV3_DATA_OUT : t_ARRAY_OF_LOGIC_VECTOR(0 to 31)(DATA_WIDTH-1 downto 0) := (others => (others => '0')); 
-  signal w_COVN3_LOADED    : std_logic;
+  signal w_CONV3_LOADED    : std_logic;
   signal w_CONV3_READY : std_logic;
    
  
@@ -383,7 +383,7 @@ architecture arch of cnn_top is
   -- sinais conv4
   signal w_CONV4_DATA_IN : t_ARRAY_OF_LOGIC_VECTOR(0 to 31)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));  
   signal w_CONV4_DATA_OUT : t_ARRAY_OF_LOGIC_VECTOR(0 to 63)(DATA_WIDTH-1 downto 0) := (others => (others => '0')); 
-  signal w_COVN4_LOADED : std_logic;
+  signal w_CONV4_LOADED : std_logic;
   signal w_CONV4_READY : std_logic;
   
   -- sianis FC
@@ -487,7 +487,7 @@ begin
       i_CLR           => i_CLR  ,
       i_GO            => w_REBUFF1_READY ,     
       i_LOAD          => i_LOAD         , 
-      o_READY         => w_COVN1_READY  , 
+      o_READY         => w_CONV1_READY  , 
       i_IN_DATA       => w_REBUFF1_DATA_OUT,
       i_IN_WRITE_ENA  => w_REBUFF1_WRITE_ENA,
       i_IN_SEL_LINE   => w_REBUFF1_SEL_LINE,
@@ -497,37 +497,37 @@ begin
       o_OUT_DATA      => w_CONV1_DATA_OUT
 	);
   
-  ------------------------------------------------------  
-           
-   u_REBUFF_2 : rebuff1 
-                   generic map 
-                   (
-                     ADDR_WIDTH    => 10,
-                     DATA_WIDTH    => 8,  
-                     NUM_BUFFER_LINES => "10"    , -- 2 buffers
-                     IFMAP_WIDTH   => "011000", -- 24
-                     IFMAP_HEIGHT  => "100000", -- 32
-                     OFMAP_WIDTH   => "011000", -- 24
-                     OFMAP_HEIGHT  => "100000", -- 32
-                     PAD_H         => "000000", -- sem pad
-                     PAD_W         => "000000", -- sem pad
-                     NUM_CHANNELS  => 6,    
-                     WITH_PAD      => '0'
-                   )
-                   port map 
-                   (
-                     i_CLK       => i_CLK,
-                     i_CLR       => i_CLR,
-                     i_GO        => w_COVN1_READY,
-                     i_DATA      => w_CONV1_DATA_OUT,
-                     o_READ_ENA  => w_REBUFF2_READ_ENA,
-                     o_IN_ADDR   => w_REBUFF2_READ_ADDR,
-                     o_OUT_ADDR  => w_REBUFF2_WRITE_ADDR,
-                     o_WRITE_ENA => w_REBUFF2_WRITE_ENA,
-                     o_DATA      => w_POOL1_DATA_IN,
-                     o_SEL_BUFF_LINE  => w_REBUFF2_SEL_LINE,
-                     o_READY     => w_REBUFF2_READY
-                   );
+  -----------------------------------------------------  
+          
+  u_REBUFF_2 : rebuff1 
+                  generic map 
+                  (
+                    ADDR_WIDTH    => 10,
+                    DATA_WIDTH    => 8,  
+                    NUM_BUFFER_LINES => "10"    , -- 2 buffers
+                    IFMAP_WIDTH   => "011000", -- 24
+                    IFMAP_HEIGHT  => "100000", -- 32
+                    OFMAP_WIDTH   => "011000", -- 24
+                    OFMAP_HEIGHT  => "100000", -- 32
+                    PAD_H         => "000000", -- sem pad
+                    PAD_W         => "000000", -- sem pad
+                    NUM_CHANNELS  => 6,    
+                    WITH_PAD      => '0'
+                  )
+                  port map 
+                  (
+                    i_CLK       => i_CLK,
+                    i_CLR       => i_CLR,
+                    i_GO        => w_CONV1_READY,
+                    i_DATA      => w_CONV1_DATA_OUT,
+                    o_READ_ENA  => w_REBUFF2_READ_ENA,
+                    o_IN_ADDR   => w_REBUFF2_READ_ADDR,
+                    o_OUT_ADDR  => w_REBUFF2_WRITE_ADDR,
+                    o_WRITE_ENA => w_REBUFF2_WRITE_ENA,
+                    o_DATA      => w_POOL1_DATA_IN,
+                    o_SEL_BUFF_LINE  => w_REBUFF2_SEL_LINE,
+                    o_READY     => w_REBUFF2_READY
+                  );
   
 
   -------------------------------------------------------
@@ -872,7 +872,7 @@ begin
                   i_CLR           => i_CLR,
                   i_GO            => w_REBUFF7_READY,
                   i_LOAD          => i_LOAD,
-                  o_LOADED        => w_COVN4_LOADED,
+                  o_LOADED        => w_CONV4_LOADED,
                   o_READY         => w_CONV4_READY,
                   i_IN_DATA       => w_CONV4_DATA_IN,
                   i_IN_WRITE_ENA  => w_REBUFF7_WRITE_ENA,
@@ -886,7 +886,7 @@ begin
   
   
   o_DATA <= w_CONV4_DATA_OUT(to_integer(unsigned(i_SEL)));
-  o_LOADED <= w_COVN4_LOADED and w_COVN3_LOADED and w_COVN2_LOADED and w_COVN1_LOADED;
+  o_LOADED <= w_CONV4_LOADED and w_CONV3_LOADED and w_CONV2_LOADED and w_CONV1_LOADED;
   o_READY <= w_CONV4_READY;
 end arch;
   

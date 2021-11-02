@@ -16,28 +16,28 @@ use work.types_pkg.all;
 entity conv1 is
   generic 
   (
-    DATA_WIDTH : integer ;
-    ADDR_WIDTH : integer ;
-    H : integer ;
-    W : integer ;
-    C : integer ;
-    R : integer ;
-    S : integer ;
-    M : integer ;      
-    NUM_PES_FILTER_CHA : std_logic_vector; 
-    LAST_PES : std_logic_vector ;
-    LAST_BIAS : std_logic_vector ;
-    LAST_ROW : std_logic_vector ;
-    LAST_COL : std_logic_vector ;
-    NC_SEL_WIDTH : integer ;
-    NC_ADDRESS_WIDTH : integer ;
-    NC_OHE_WIDTH : integer ;
-    BIAS_OHE_WIDTH : integer ;
-    WEIGHTS_ADDRESS_WIDTH : integer ;
-    BIAS_ADDRESS_WIDTH : integer ;
-    SCALE_SHIFT  : t_ARRAY_OF_INTEGER;
-    WEIGHTS_FILE_NAME : STRING;
-    BIAS_FILE_NAME : STRING
+    DATA_WIDTH : integer := 8;
+    ADDR_WIDTH : integer := 10;
+    H : integer := 34; -- iFMAP Height 
+    W : integer := 26; -- iFMAP Width 
+    C : integer := 3; -- iFMAP Chanels (filter Chanels also)
+    R : integer := 3; -- filter Height 
+    S : integer := 3; -- filter Width     
+    M : integer := 6; -- Number of filters (oFMAP Chanels also)        
+    NUM_PES_FILTER_CHA : std_logic_vector := "1000";
+    LAST_PES : std_logic_vector := "10100010"; 
+    LAST_BIAS : std_logic_vector := "1100"; 
+    LAST_ROW : std_logic_vector := "100010"; 
+    LAST_COL : std_logic_vector := "11010"; 
+    NC_SEL_WIDTH : integer := 2; 
+    NC_ADDRESS_WIDTH : integer := 5; 
+    NC_OHE_WIDTH : integer := 18;
+    BIAS_OHE_WIDTH : integer := 12; 
+    WEIGHTS_ADDRESS_WIDTH : integer := 10; 
+    BIAS_ADDRESS_WIDTH : integer := 6; 
+    SCALE_SHIFT  : t_ARRAY_OF_INTEGER; -- (0 to  5) := (8, 8, 7, 8, 8, 9);
+    WEIGHTS_FILE_NAME : string := "conv1.mif";
+    BIAS_FILE_NAME    : string := "conv1_bias.mif"                
   );
   port 
   (
