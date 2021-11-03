@@ -3,12 +3,12 @@
 LIBRARY IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-entity BIT_ADDER is
+entity BIT_ADDER1 is
         port( a, b, cin         : in  STD_LOGIC;
               sum, cout         : out STD_LOGIC );
-end BIT_ADDER;
+end BIT_ADDER1;
 
-architecture BHV of BIT_ADDER is
+architecture BHV of BIT_ADDER1 is
 begin
 
         sum <=  (not a and not b and cin) or
@@ -37,7 +37,7 @@ END add2;
 
 ARCHITECTURE STRUCTURE OF add2 IS
 
-    COMPONENT BIT_ADDER
+    COMPONENT BIT_ADDER1
         PORT( a, b, cin  : IN  STD_LOGIC;
                 sum, cout  : OUT STD_LOGIC
         );
@@ -47,8 +47,8 @@ ARCHITECTURE STRUCTURE OF add2 IS
 
 BEGIN
 
-    b_adder0: BIT_ADDER PORT MAP (a(0), b(0), cin, ans(0), c1);
-    b_adder1: BIT_ADDER PORT MAP (a(1), b(1), c1, ans(1), cout);
+    b_adder0: BIT_ADDER1 PORT MAP (a(0), b(0), cin, ans(0), c1);
+    b_adder1: BIT_ADDER1 PORT MAP (a(1), b(1), c1, ans(1), cout);
 
 END STRUCTURE;
 

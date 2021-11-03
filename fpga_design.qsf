@@ -39,10 +39,10 @@
 
 set_global_assignment -name FAMILY "Cyclone V"
 set_global_assignment -name DEVICE 5CSEMA5F31C6
-set_global_assignment -name TOP_LEVEL_ENTITY fc_op
+set_global_assignment -name TOP_LEVEL_ENTITY cnn_top
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 16.1.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "09:21:43  SEPTEMBER 08, 2021"
-set_global_assignment -name LAST_QUARTUS_VERSION "16.1.0 Lite Edition"
+set_global_assignment -name LAST_QUARTUS_VERSION "17.1.0 Lite Edition"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
@@ -54,14 +54,25 @@ set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_global_assignment -name VHDL_INPUT_VERSION VHDL_2008
 set_global_assignment -name VHDL_SHOW_LMF_MAPPING_MESSAGES OFF
-set_global_assignment -name SOURCE_FILE softmax_enax_mem.cmp
-set_global_assignment -name SOURCE_FILE image_chanel.cmp
-set_global_assignment -name SOURCE_FILE generic_ram.cmp
-set_global_assignment -name SOURCE_FILE conv1_weights.cmp
-set_global_assignment -name SOURCE_FILE conv1_bias.cmp
-set_global_assignment -name VHDL_FILE add16.vhd
-set_global_assignment -name VHDL_FILE generic_multiplexer.vhd
+set_global_assignment -name FLOW_ENABLE_RTL_VIEWER ON
+set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
+set_global_assignment -name DSP_BLOCK_BALANCING "LOGIC ELEMENTS"
+set_global_assignment -name AUTO_RESOURCE_SHARING ON
+set_global_assignment -name SDC_FILE fpga_design.sdc
 set_global_assignment -name VHDL_FILE rebuffer_padding.vhd
+set_global_assignment -name VHDL_FILE rebuffer_op.vhd
+set_global_assignment -name VHDL_FILE rebuffer_crt.vhd
+set_global_assignment -name VHDL_FILE rebuff3.vhd
+set_global_assignment -name VHDL_FILE rebuff2.vhd
+set_global_assignment -name VHDL_FILE rebuff1.vhd
+set_global_assignment -name VHDL_FILE pool1_op.vhd
+set_global_assignment -name VHDL_FILE pool1_crt.vhd
+set_global_assignment -name VHDL_FILE pool1.vhd
+set_global_assignment -name VHDL_FILE generic_multiplexer.vhd
+set_global_assignment -name VHDL_FILE conv2.vhd
+set_global_assignment -name VHDL_FILE cnn_top_tb.vhd
+set_global_assignment -name VHDL_FILE cnn_crt.vhd
+set_global_assignment -name VHDL_FILE add16.vhd
 set_global_assignment -name VHDL_FILE io_buffer.vhd
 set_global_assignment -name SOURCE_FILE nucleo_convolucional_tb
 set_global_assignment -name VHDL_FILE nucleo_convolucional.vhd
