@@ -34,12 +34,12 @@ end arch;
 LIBRARY IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-entity BIT_ADDER is
+entity BIT_ADDER1 is
         port( a, b, cin         : in  STD_LOGIC;
               sum, cout         : out STD_LOGIC );
-end BIT_ADDER;
+end BIT_ADDER1;
 
-architecture BHV of BIT_ADDER is
+architecture BHV of BIT_ADDER1 is
 begin
 
   sum <=  (not a and not b and cin) or

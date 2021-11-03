@@ -43,7 +43,7 @@ USE altera_mf.altera_mf_components.all;
 ENTITY conv1_weights IS
   GENERIC 
   (
-    init_file_name : STRING := "input_chanel_1.mif";
+    init_file_name : STRING := "conv1.mif";
     DATA_WIDTH : INTEGER := 8;
     DATA_DEPTH : INTEGER := 10
   );
