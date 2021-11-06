@@ -34,8 +34,8 @@ architecture arch of cnn_top is
   constant CONV1_R : integer := 3; -- filter Height 
   constant CONV1_S : integer := 3; -- filter Width     
   constant CONV1_M : integer := 6; -- Number of filters (oFMAP Chanels also)      
-  constant CONV1_NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
-  constant CONV1_LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
+  constant CONV1_NUM_WEIGHT_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
+  constant CONV1_LAST_WEIGHT : std_logic_vector := "10100010"; -- quantidade de pesos (162)
   constant CONV1_LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
   constant CONV1_LAST_ROW : std_logic_vector := "100010"; -- 34 (0 a 33 = 34 pixels) (2 pixels de pad)
   constant CONV1_LAST_COL : std_logic_vector := "11010";   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
@@ -43,11 +43,11 @@ architecture arch of cnn_top is
   constant CONV1_NC_ADDRESS_WIDTH : integer := 5; -- num bits para enderecamento de NCs
   constant CONV1_NC_OHE_WIDTH : integer := 18; -- numero de bits para one-hot-encoder de NCs
   constant CONV1_BIAS_OHE_WIDTH : integer := 12; -- numero de bits para one-hot-encoder de bias e scales
-  constant CONV1_WEIGHTS_ADDRESS_WIDTH : integer := 10; -- numero de bits para enderecar pesos
+  constant CONV1_WEIGHT_ADDRESS_WIDTH : integer := 10; -- numero de bits para enderecar pesos
   constant CONV1_BIAS_ADDRESS_WIDTH : integer := 6; -- numero de bits para enderecar registradores de bias e scale
   constant CONV1_SCALE_SHIFT  : t_ARRAY_OF_INTEGER(0 to CONV1_M-1) := (8, 8, 7, 8, 8, 9); --num bits to shift
-  constant CONV1_WEIGHTS_FILE_NAME     : string := "conv1.mif";
-  constant CONV1_BIAS_FILE_NAME        : string := "conv1_bias.mif";                      
+  constant CONV1_WEIGHT_FILE_NAME     : string := "weights_and_biases/conv1.mif";
+  constant CONV1_BIAS_FILE_NAME        : string := "weights_and_biases/conv1_bias.mif";                      
   ------------------------------------------------------------------
   constant CONV2_H : integer := 18; -- iFMAP Height 
   constant CONV2_W : integer := 14; -- iFMAP Width 
@@ -55,8 +55,8 @@ architecture arch of cnn_top is
   constant CONV2_R : integer := 3; -- filter Height 
   constant CONV2_S : integer := 3; -- filter Width     
   constant CONV2_M : integer := 16; -- Number of filters (oFMAP Chanels also)        
-  constant CONV2_NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
-  constant CONV2_LAST_PES : std_logic_vector := "1101100000"; -- quantidade de pesos (864)
+  constant CONV2_NUM_WEIGHT_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
+  constant CONV2_LAST_WEIGHT : std_logic_vector := "1101100000"; -- quantidade de pesos (864)
   constant CONV2_LAST_BIAS : std_logic_vector := "100000"; -- quantidade de bias e scale (32)    
   constant CONV2_LAST_ROW : std_logic_vector := "010010"; -- 18 
   constant CONV2_LAST_COL : std_logic_vector :=  "01110";  -- 14 
@@ -64,11 +64,11 @@ architecture arch of cnn_top is
   constant CONV2_NC_ADDRESS_WIDTH : integer := 7; -- numero de bits para enderecar NCs 
   constant CONV2_NC_OHE_WIDTH : integer := 96; -- numero de bits para one-hot-encoder de NCs
   constant CONV2_BIAS_OHE_WIDTH : integer := 32; -- numero de bits para one-hot-encoder de bias e scales
-  constant CONV2_WEIGHTS_ADDRESS_WIDTH : integer := 10; -- numero de bits para enderecar pesos
+  constant CONV2_WEIGHT_ADDRESS_WIDTH : integer := 10; -- numero de bits para enderecar pesos
   constant CONV2_BIAS_ADDRESS_WIDTH : integer := 6; -- numero de bits para enderecar registradores de bias e scales
   constant CONV2_SCALE_SHIFT : t_ARRAY_OF_INTEGER(0 to CONV2_M-1) := (6,7,6,6,6,7,6,7,6,7,7,6,6,6,7,7);
-  constant CONV2_WEIGHTS_FILE_NAME     : string := "conv2.mif";
-  constant CONV2_BIAS_FILE_NAME        : string := "conv2_bias.mif";
+  constant CONV2_WEIGHT_FILE_NAME     : string := "weights_and_biases/conv2.mif";
+  constant CONV2_BIAS_FILE_NAME        : string := "weights_and_biases/conv2_bias.mif";
   ------------------------------------------------------------------
   constant CONV3_H : integer := 10; -- iFMAP Height 
   constant CONV3_W : integer := 8; -- iFMAP Width 
@@ -76,8 +76,8 @@ architecture arch of cnn_top is
   constant CONV3_R : integer := 3; -- filter Height 
   constant CONV3_S : integer := 3; -- filter Width     
   constant CONV3_M : integer := 32; -- Number of filters (oFMAP Chanels also)        
-  constant CONV3_NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
-  constant CONV3_LAST_PES : std_logic_vector := "1100100001000"; -- quantidade de pesos (4608) (13 bits)
+  constant CONV3_NUM_WEIGHT_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
+  constant CONV3_LAST_WEIGHT : std_logic_vector := "1100100001000"; -- quantidade de pesos (4608) (13 bits)
   constant CONV3_LAST_BIAS : std_logic_vector := "1000000"; -- quantidade de bias e scale (64)    
   constant CONV3_LAST_ROW : std_logic_vector := "001010"; -- 10
   constant CONV3_LAST_COL : std_logic_vector :=  "01000"; -- 8
@@ -85,11 +85,11 @@ architecture arch of cnn_top is
   constant CONV3_NC_ADDRESS_WIDTH : integer := 10; -- numero de bits para enderecar todos os NCs 
   constant CONV3_NC_OHE_WIDTH : integer := 512; -- numero de bits para one-hot-encoder de NCs
   constant CONV3_BIAS_OHE_WIDTH : integer := 64; -- numero de bits para one-hot-encoder de bias e scales
-  constant CONV3_WEIGHTS_ADDRESS_WIDTH : integer := 13; -- numero de bits para enderecar pesos
+  constant CONV3_WEIGHT_ADDRESS_WIDTH : integer := 13; -- numero de bits para enderecar pesos
   constant CONV3_BIAS_ADDRESS_WIDTH : integer := 7; -- numero de bits para enderecar registradores de bias e scales
   constant CONV3_SCALE_SHIFT : t_ARRAY_OF_INTEGER(CONV3_M-1 downto 0) := (7 ,8 ,7 ,7 ,8 ,8 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,8 ,7 ,7 ,7 ,7 ,7 ,7 ,7 ,8 ,7 ,7 ,7);
-  constant CONV3_WEIGHTS_FILE_NAME     : string := "conv3.mif";
-  constant CONV3_BIAS_FILE_NAME        : string := "conv3_bias.mif";
+  constant CONV3_WEIGHT_FILE_NAME     : string := "weights_and_biases/conv3.mif";
+  constant CONV3_BIAS_FILE_NAME        : string := "weights_and_biases/conv3_bias.mif";
   ------------------------------------------------------------------
   constant CONV4_H : integer := 4; -- iFMAP Height 
   constant CONV4_W : integer := 3; -- iFMAP Width 
@@ -97,8 +97,8 @@ architecture arch of cnn_top is
   constant CONV4_R : integer := 3; -- filter Height 
   constant CONV4_S : integer := 3; -- filter Width     
   constant CONV4_M : integer := 64; -- Number of filters (oFMAP Chanels also)        
-  constant CONV4_NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
-  constant CONV4_LAST_PES : std_logic_vector := "100100000000000"; -- quantidade de pesos (18432) (15 bits)
+  constant CONV4_NUM_WEIGHT_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
+  constant CONV4_LAST_WEIGHT : std_logic_vector := "100100000000000"; -- quantidade de pesos (18432) (15 bits)
   constant CONV4_LAST_BIAS : std_logic_vector := "10000000"; -- quantidade de bias e scale (128)    
   constant CONV4_LAST_ROW : std_logic_vector := "000100"; -- 4
   constant CONV4_LAST_COL : std_logic_vector :=  "00011"; -- 3
@@ -106,11 +106,11 @@ architecture arch of cnn_top is
   constant CONV4_NC_ADDRESS_WIDTH : integer := 12; -- numero de bits para enderecar todos os NCs 
   constant CONV4_NC_OHE_WIDTH : integer := 2048; -- numero de bits para one-hot-encoder de NCs
   constant CONV4_BIAS_OHE_WIDTH : integer := 128; -- numero de bits para one-hot-encoder de bias e scales
-  constant CONV4_WEIGHTS_ADDRESS_WIDTH : integer := 15; -- numero de bits para enderecar pesos
+  constant CONV4_WEIGHT_ADDRESS_WIDTH : integer := 15; -- numero de bits para enderecar pesos
   constant CONV4_BIAS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar registradores de bias e scales
   constant CONV4_SCALE_SHIFT : t_ARRAY_OF_INTEGER(CONV4_M-1 downto 0) := (10,9,10,8,10,10,8,10,8,10,10,10,8,10,9,8,10,9,9,10,9,9,9,10,10,10,8,10,8,9,9,9,10,10,10,10,8,8,10,10,9,8,8,9,9,10,10,8,10,10,10,8,10,10,10,10,8,8,8,8,8,10,8,10);
-  constant CONV4_WEIGHTS_FILE_NAME     : string := "conv4.mif";
-  constant CONV4_BIAS_FILE_NAME        : string := "conv4_bias.mif";
+  constant CONV4_WEIGHT_FILE_NAME     : string := "weights_and_biases/conv4.mif";
+  constant CONV4_BIAS_FILE_NAME        : string := "weights_and_biases/conv4_bias.mif";
   
   
   
@@ -174,8 +174,8 @@ architecture arch of cnn_top is
       R : integer ;
       S : integer ;
       M : integer ;      
-      NUM_PES_FILTER_CHA : std_logic_vector; 
-      LAST_PES : std_logic_vector ;
+      NUM_WEIGHT_FILTER_CHA : std_logic_vector; 
+      LAST_WEIGHT : std_logic_vector ;
       LAST_BIAS : std_logic_vector ;
       LAST_ROW : std_logic_vector ;
       LAST_COL : std_logic_vector ;
@@ -183,10 +183,10 @@ architecture arch of cnn_top is
       NC_ADDRESS_WIDTH : integer ;
       NC_OHE_WIDTH : integer ;
       BIAS_OHE_WIDTH : integer ;
-      WEIGHTS_ADDRESS_WIDTH : integer ;
+      WEIGHT_ADDRESS_WIDTH : integer ;
       BIAS_ADDRESS_WIDTH : integer ;
       SCALE_SHIFT  : t_ARRAY_OF_INTEGER;
-      WEIGHTS_FILE_NAME : STRING;
+      WEIGHT_FILE_NAME : STRING;
       BIAS_FILE_NAME : STRING      
     );
     port 
@@ -397,7 +397,7 @@ begin
   
   -- imagem de entrada
   u_IMG_CHA_0 : image_chanel
-                  generic map ("input_chanel_R.mif")
+                  generic map ("input_img/input_chanel_R.mif")
                   port map (
                     address	=> w_IMG_READ_ADDR,
                     clock		=> i_CLK,
@@ -407,7 +407,7 @@ begin
                   
   -- imagem de entrada
   u_IMG_CHA_1 : image_chanel
-                  generic map ("input_chanel_G.mif")
+                  generic map ("input_img/input_chanel_G.mif")
                   port map (
                     address	=> w_IMG_READ_ADDR,
                     clock		=> i_CLK,
@@ -416,7 +416,7 @@ begin
                   );
   -- imagem de entrada
   u_IMG_CHA_2 : image_chanel
-                  generic map ("input_chanel_B.mif")
+                  generic map ("input_img/input_chanel_B.mif")
                   port map (
                     address	=> w_IMG_READ_ADDR,
                     clock		=> i_CLK,
@@ -466,8 +466,8 @@ begin
       R                     => CONV1_R                     ,
       S                     => CONV1_S                     ,
       M                     => CONV1_M                     ,
-      NUM_PES_FILTER_CHA    => CONV1_NUM_PES_FILTER_CHA    ,
-      LAST_PES              => CONV1_LAST_PES              ,
+      NUM_WEIGHT_FILTER_CHA    => CONV1_NUM_WEIGHT_FILTER_CHA    ,
+      LAST_WEIGHT              => CONV1_LAST_WEIGHT              ,
       LAST_BIAS             => CONV1_LAST_BIAS             ,
       LAST_ROW              => CONV1_LAST_ROW              ,
       LAST_COL              => CONV1_LAST_COL              ,
@@ -475,10 +475,10 @@ begin
       NC_ADDRESS_WIDTH      => CONV1_NC_ADDRESS_WIDTH      ,
       NC_OHE_WIDTH          => CONV1_NC_OHE_WIDTH          ,
       BIAS_OHE_WIDTH        => CONV1_BIAS_OHE_WIDTH        ,
-      WEIGHTS_ADDRESS_WIDTH => CONV1_WEIGHTS_ADDRESS_WIDTH ,
+      WEIGHT_ADDRESS_WIDTH => CONV1_WEIGHT_ADDRESS_WIDTH ,
       BIAS_ADDRESS_WIDTH    => CONV1_BIAS_ADDRESS_WIDTH    ,
       SCALE_SHIFT           => CONV1_SCALE_SHIFT           ,
-      WEIGHTS_FILE_NAME     => CONV1_WEIGHTS_FILE_NAME     ,
+      WEIGHT_FILE_NAME     => CONV1_WEIGHT_FILE_NAME     ,
       BIAS_FILE_NAME        => CONV1_BIAS_FILE_NAME        
     )
     port map
@@ -486,7 +486,8 @@ begin
       i_CLK           => i_CLK  ,
       i_CLR           => i_CLR  ,
       i_GO            => w_REBUFF1_READY ,     
-      i_LOAD          => i_LOAD         , 
+      i_LOAD          => i_LOAD         ,
+      o_LOADED        => w_CONV1_LOADED, 
       o_READY         => w_CONV1_READY  , 
       i_IN_DATA       => w_REBUFF1_DATA_OUT,
       i_IN_WRITE_ENA  => w_REBUFF1_WRITE_ENA,
@@ -596,8 +597,8 @@ begin
                   R                     => CONV2_R                     ,
                   S                     => CONV2_S                     ,
                   M                     => CONV2_M                     ,
-                  NUM_PES_FILTER_CHA    => CONV2_NUM_PES_FILTER_CHA    ,
-                  LAST_PES              => CONV2_LAST_PES              ,
+                  NUM_WEIGHT_FILTER_CHA    => CONV2_NUM_WEIGHT_FILTER_CHA    ,
+                  LAST_WEIGHT              => CONV2_LAST_WEIGHT              ,
                   LAST_BIAS             => CONV2_LAST_BIAS             ,
                   LAST_ROW              => CONV2_LAST_ROW              ,
                   LAST_COL              => CONV2_LAST_COL              ,
@@ -605,10 +606,10 @@ begin
                   NC_ADDRESS_WIDTH      => CONV2_NC_ADDRESS_WIDTH      ,
                   NC_OHE_WIDTH          => CONV2_NC_OHE_WIDTH          ,
                   BIAS_OHE_WIDTH        => CONV2_BIAS_OHE_WIDTH        ,
-                  WEIGHTS_ADDRESS_WIDTH => CONV2_WEIGHTS_ADDRESS_WIDTH ,
+                  WEIGHT_ADDRESS_WIDTH => CONV2_WEIGHT_ADDRESS_WIDTH ,
                   BIAS_ADDRESS_WIDTH    => CONV2_BIAS_ADDRESS_WIDTH    ,
                   SCALE_SHIFT           => CONV2_SCALE_SHIFT           ,
-                  WEIGHTS_FILE_NAME     => CONV2_WEIGHTS_FILE_NAME     ,
+                  WEIGHT_FILE_NAME     => CONV2_WEIGHT_FILE_NAME     ,
                   BIAS_FILE_NAME        => CONV2_BIAS_FILE_NAME        
                 )
                 port map
@@ -617,6 +618,7 @@ begin
                   i_CLR           => i_CLR,
                   i_GO            => w_REBUFF3_READY,
                   i_LOAD          => i_LOAD,
+                  o_LOADED        => w_CONV2_LOADED, 
                   o_READY         => w_CONV2_READY,
                   i_IN_DATA       => w_CONV2_DATA_IN,
                   i_IN_WRITE_ENA  => w_REBUFF3_WRITE_ENA,
@@ -724,8 +726,8 @@ begin
                   R                     => CONV3_R                     ,
                   S                     => CONV3_S                     ,
                   M                     => CONV3_M                     ,
-                  NUM_PES_FILTER_CHA    => CONV3_NUM_PES_FILTER_CHA    ,
-                  LAST_PES              => CONV3_LAST_PES              ,
+                  NUM_WEIGHT_FILTER_CHA    => CONV3_NUM_WEIGHT_FILTER_CHA    ,
+                  LAST_WEIGHT              => CONV3_LAST_WEIGHT              ,
                   LAST_BIAS             => CONV3_LAST_BIAS             ,
                   LAST_ROW              => CONV3_LAST_ROW              ,
                   LAST_COL              => CONV3_LAST_COL              ,
@@ -733,10 +735,10 @@ begin
                   NC_ADDRESS_WIDTH      => CONV3_NC_ADDRESS_WIDTH      ,
                   NC_OHE_WIDTH          => CONV3_NC_OHE_WIDTH          ,
                   BIAS_OHE_WIDTH        => CONV3_BIAS_OHE_WIDTH        ,
-                  WEIGHTS_ADDRESS_WIDTH => CONV3_WEIGHTS_ADDRESS_WIDTH ,
+                  WEIGHT_ADDRESS_WIDTH => CONV3_WEIGHT_ADDRESS_WIDTH ,
                   BIAS_ADDRESS_WIDTH    => CONV3_BIAS_ADDRESS_WIDTH    ,
                   SCALE_SHIFT           => CONV3_SCALE_SHIFT           ,
-                  WEIGHTS_FILE_NAME     => CONV3_WEIGHTS_FILE_NAME     ,
+                  WEIGHT_FILE_NAME     => CONV3_WEIGHT_FILE_NAME     ,
                   BIAS_FILE_NAME        => CONV3_BIAS_FILE_NAME        
                 )
                 port map
@@ -745,6 +747,7 @@ begin
                   i_CLR           => i_CLR,
                   i_GO            => w_REBUFF5_READY,
                   i_LOAD          => i_LOAD,
+                  o_LOADED        => w_CONV3_LOADED, 
                   o_READY         => w_CONV3_READY,
                   i_IN_DATA       => w_CONV3_DATA_IN,
                   i_IN_WRITE_ENA  => w_REBUFF5_WRITE_ENA,
@@ -851,8 +854,8 @@ begin
                   R                     => CONV4_R                     ,
                   S                     => CONV4_S                     ,
                   M                     => CONV4_M                     ,
-                  NUM_PES_FILTER_CHA    => CONV4_NUM_PES_FILTER_CHA    ,
-                  LAST_PES              => CONV4_LAST_PES              ,
+                  NUM_WEIGHT_FILTER_CHA    => CONV4_NUM_WEIGHT_FILTER_CHA    ,
+                  LAST_WEIGHT              => CONV4_LAST_WEIGHT              ,
                   LAST_BIAS             => CONV4_LAST_BIAS             ,
                   LAST_ROW              => CONV4_LAST_ROW              ,
                   LAST_COL              => CONV4_LAST_COL              ,
@@ -860,10 +863,10 @@ begin
                   NC_ADDRESS_WIDTH      => CONV4_NC_ADDRESS_WIDTH      ,
                   NC_OHE_WIDTH          => CONV4_NC_OHE_WIDTH          ,
                   BIAS_OHE_WIDTH        => CONV4_BIAS_OHE_WIDTH        ,
-                  WEIGHTS_ADDRESS_WIDTH => CONV4_WEIGHTS_ADDRESS_WIDTH ,
+                  WEIGHT_ADDRESS_WIDTH => CONV4_WEIGHT_ADDRESS_WIDTH ,
                   BIAS_ADDRESS_WIDTH    => CONV4_BIAS_ADDRESS_WIDTH    ,
                   SCALE_SHIFT           => CONV4_SCALE_SHIFT           ,
-                  WEIGHTS_FILE_NAME     => CONV4_WEIGHTS_FILE_NAME     ,
+                  WEIGHT_FILE_NAME     => CONV4_WEIGHT_FILE_NAME     ,
                   BIAS_FILE_NAME        => CONV4_BIAS_FILE_NAME        
                 )
                 port map
@@ -886,7 +889,7 @@ begin
   
   
   o_DATA <= w_CONV4_DATA_OUT(to_integer(unsigned(i_SEL)));
-  o_LOADED <= w_CONV4_LOADED and w_CONV3_LOADED and w_CONV2_LOADED and w_CONV1_LOADED;
+  o_LOADED <= w_CONV4_LOADED and w_CONV3_LOADED and w_CONV2_LOADED and w_CONV1_LOADED; 
   o_READY <= w_CONV4_READY;
 end arch;
   

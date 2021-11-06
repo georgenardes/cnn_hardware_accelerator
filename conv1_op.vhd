@@ -32,7 +32,7 @@ entity conv1_op is
     NC_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar NCs 
     NC_OHE_WIDTH : integer := 18; -- numero de bits para one-hot-encoder de NCs
     BIAS_OHE_WIDTH : integer := 12; -- numero de bits para one-hot-encoder de bias e scales
-    WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
+    WEIGHT_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
     BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
     DATA_WIDTH : integer := 8;
     ADDR_WIDTH : integer := 10;
@@ -67,7 +67,7 @@ entity conv1_op is
     ---------------------------------
     
     -- sinal para rom de pesos    
-    i_PES : in std_logic_vector(7 downto 0);
+    i_WEIGHT : in std_logic_vector(7 downto 0);
     
     -- SINAL PARA ROM DE BIAS E SCALES        
     i_BIAS_WRITE_ADDR : IN STD_LOGIC_VECTOR (BIAS_ADDRESS_WIDTH-1 DOWNTO 0);
@@ -82,11 +82,11 @@ entity conv1_op is
     ---------------------------------
     -- habilita deslocamento dos registradores de pixels e pesos
     i_PIX_SHIFT_ENA : in STD_LOGIC;    
-    i_PES_SHIFT_ENA : in STD_LOGIC;    
-    i_PES_SHIFT_ADDR : in std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    -- endereco do NC para carregar pesos     
+    i_WEIGHT_SHIFT_ENA : in STD_LOGIC;    
+    i_WEIGHT_SHIFT_ADDR : in std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    -- endereco do NC para carregar pesos     
     
     -- seleciona linha dos registradores de deslocamento
-    i_PES_ROW_SEL : in std_logic_vector(1 downto 0);
+    i_WEIGHT_ROW_SEL : in std_logic_vector(1 downto 0);
     
     -- seleciona saida de NCs
     i_NC_O_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0); 
@@ -186,7 +186,7 @@ architecture arch of conv1_op is
       
       -- habilita deslocamento dos registradores
       i_PIX_SHIFT_ENA : in STD_LOGIC;
-      i_PES_SHIFT_ENA : in STD_LOGIC;    
+      i_WEIGHT_SHIFT_ENA : in STD_LOGIC;    
 
       -- linhas de pixels
       i_PIX_ROW_1 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
@@ -194,10 +194,10 @@ architecture arch of conv1_op is
       i_PIX_ROW_3 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);  
       
       -- habilita escrita em uma das linhas de pesos
-      i_PES_ROW_SEL : in std_logic_vector (1 downto 0);
+      i_WEIGHT_ROW_SEL : in std_logic_vector (1 downto 0);
       
       -- peso de entrada
-      i_PES : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+      i_WEIGHT : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
       
       -- pixel de saida
       o_PIX       : out STD_LOGIC_VECTOR (o_DATA_WIDTH - 1 downto 0)
@@ -439,12 +439,12 @@ begin
         -- NC pixel de saida
         signal w_o_PIX       :  STD_LOGIC_VECTOR (31 downto 0) := (others => '0');        
         signal w_cout, w_overflow, w_underflow  : std_logic := '0';
-				signal w_PES_SHIFT_ENABLE : std_logic := '0';                       
+				signal w_WEIGHT_SHIFT_ENABLE : std_logic := '0';                       
 
       begin
 		
 			-- habilita deslocamento de peso                       
-      w_PES_SHIFT_ENABLE <= w_NC_PES_ADDR((j*C)+i) AND i_PES_SHIFT_ENA;
+      w_WEIGHT_SHIFT_ENABLE <= w_NC_PES_ADDR((j*C)+i) AND i_WEIGHT_SHIFT_ENA;
 
       -- nucleos convolucionais 
       NCX : nucleo_convolucional             
@@ -453,12 +453,12 @@ begin
                 i_CLK           => i_CLK,          
                 i_CLR           => i_CLR,           
                 i_PIX_SHIFT_ENA => i_PIX_SHIFT_ENA,
-                i_PES_SHIFT_ENA => w_PES_SHIFT_ENABLE,  
+                i_WEIGHT_SHIFT_ENA => w_WEIGHT_SHIFT_ENABLE,  
                 i_PIX_ROW_1     => w_NC_PIX_ROW_1,    
                 i_PIX_ROW_2     => w_NC_PIX_ROW_2,    
                 i_PIX_ROW_3     => w_NC_PIX_ROW_3,  
-                i_PES_ROW_SEL   => i_PES_ROW_SEL, -- habilita linha de peso
-                i_PES           => i_PES,       -- peso de entrada
+                i_WEIGHT_ROW_SEL   => i_WEIGHT_ROW_SEL, -- habilita linha de peso
+                i_WEIGHT           => i_WEIGHT,       -- peso de entrada
                 o_PIX           => w_o_PIX
               );
               
@@ -486,7 +486,7 @@ begin
     signal w_MUX_I_VET : t_ARRAY_OF_LOGIC_VECTOR(0 to (2**NC_SEL_WIDTH)-1)(31 downto 0) := (others => (others => '0'));
         
     -- sinais para somadores
-    signal w_COUT, w_OVERFLOW, w_UNDERFLOW : std_logic;
+    -- signal w_COUT, w_OVERFLOW, w_UNDERFLOW : std_logic;
     signal w_ADD_OUT : STD_LOGIC_VECTOR(31  downto 0);
     
     -- sinal de saida relu
@@ -530,10 +530,10 @@ begin
               a         => w_o_ADD(i),
               b         => w_o_MUX_NC(i),
               cin       => '0',
-              sum1      => w_ADD_OUT,
-              cout      => w_COUT,
-              overflow  => w_OVERFLOW,
-              underflow => w_UNDERFLOW
+              sum1      => w_ADD_OUT
+              -- cout      => w_COUT,
+              -- overflow  => w_OVERFLOW,
+              -- underflow => w_UNDERFLOW
             );
     
     -- registrador para acumular saida dos canais de um NC
@@ -633,7 +633,7 @@ begin
                        OUT_WIDTH  => M*C) -- numero de NC
           port map 
           (
-             i_DATA => i_PES_SHIFT_ADDR,
+             i_DATA => i_WEIGHT_SHIFT_ADDR,
              o_DATA => w_NC_PES_ADDR
           );  
   

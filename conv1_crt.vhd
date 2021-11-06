@@ -26,10 +26,10 @@ entity conv1_crt is
     ADDR_WIDTH : integer := 10;
     NC_SEL_WIDTH  : integer := 2; -- largura de bits para selecionar saidas dos NCs de cada filtro
     NC_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar NCs 
-    WEIGHTS_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
+    WEIGHT_ADDRESS_WIDTH : integer := 8; -- numero de bits para enderecar pesos
     BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales    
-    NUM_PES_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
-    LAST_PES : std_logic_vector := "10100010"; -- quantidade de pesos (162)
+    NUM_WEIGHT_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
+    LAST_WEIGHT : std_logic_vector := "10100010"; -- quantidade de pesos (162)
     LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
     LAST_ROW : std_logic_vector := "100010"; -- 34 (0 a 33 = 34 pixels) (pixels de pad)
     LAST_COL : std_logic_vector := "11010"   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
@@ -47,7 +47,7 @@ entity conv1_crt is
     -- sinais para buffers de entrada
     ---------------------------------
     -- habilita leitura
-    o_IN_READ_ENA   : out  std_logic;
+    o_IN_READ_ENA   : out  std_logic := '0';
     -- enderecos a serem lidos
     o_IN_READ_ADDR0 : out std_logic_vector (ADDR_WIDTH - 1 downto 0);
     o_IN_READ_ADDR1 : out std_logic_vector (ADDR_WIDTH - 1 downto 0);
@@ -56,8 +56,8 @@ entity conv1_crt is
     ---------------------------------
     
     -- sinal para rom de pesos
-    o_PES_READ_ENA  : out std_logic; 
-    o_PES_READ_ADDR : out std_logic_vector(WEIGHTS_ADDRESS_WIDTH-1 downto 0);  -- bits para enderecamento ROM de pesos
+    o_WEIGHT_READ_ENA  : out std_logic; 
+    o_WEIGHT_READ_ADDR : out std_logic_vector(WEIGHT_ADDRESS_WIDTH-1 downto 0);  -- bits para enderecamento ROM de pesos
     
     -- SINAL PARA ROM DE BIAS E SCALES
     o_BIAS_READ_ADDR : out STD_LOGIC_VECTOR (BIAS_ADDRESS_WIDTH-1 DOWNTO 0);
@@ -73,13 +73,13 @@ entity conv1_crt is
     ---------------------------------
     -- habilita deslocamento dos registradores de pixels e pesos
     o_PIX_SHIFT_ENA : out  std_logic;
-    o_PES_SHIFT_ENA : out  std_logic;
+    o_WEIGHT_SHIFT_ENA : out  std_logic;
     
     -- endereco do NC para carregar pesos     
     o_NC_ADDR : out std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
     
     -- seleciona linha dos registradores de deslocamento
-    o_PES_ROW_SEL : out std_logic_vector(1 downto 0);
+    o_WEIGHT_ROW_SEL : out std_logic_vector(1 downto 0);
 
     -- seleciona saida de NCs
     o_NC_O_SEL      : out  std_logic_vector(NC_SEL_WIDTH  - 1 downto 0);
@@ -112,10 +112,10 @@ architecture arch of conv1_crt is
   type t_STATE is (
     s_IDLE, -- IDLE
     
-    s_PES_VERIFY_ADDR, -- verifica endereco ROM pesos
-    s_PES_READ_ENA, -- habilita leitura pesos
-    s_PES_WRITE_ENA, -- habilita escrita pesos
-    s_PES_INC_ADDR, -- incrementa endereco de pesos
+    s_WEIGHT_VERIFY_ADDR, -- verifica endereco ROM pesos
+    s_WEIGHT_READ_ENA, -- habilita leitura pesos
+    s_WEIGHT_WRITE_ENA, -- habilita escrita pesos
+    s_WEIGHT_INC_ADDR, -- incrementa endereco de pesos
     s_BIAS_VERIFY_ADDR, -- verifica endereco ROM BIAS E SCALE
     s_BIAS_READ_ENA, -- habilita leitura BIAS
     s_BIAS_WRITE_ENA, -- habilita escrita BIAS
@@ -210,22 +210,22 @@ architecture arch of conv1_crt is
   
   
   -- enderecamento dos pesos
-  signal r_WEIGHTS_ADDR : std_logic_vector(WEIGHTS_ADDRESS_WIDTH-1 downto 0);
+  signal r_WEIGHT_ADDR : std_logic_vector(WEIGHT_ADDRESS_WIDTH-1 downto 0);
   signal w_RST_WEIGHT_ADDR       : std_logic; 
   signal w_INC_WEIGHT_ADDR       : std_logic;
   
   -- conta pesos por filtro
-  signal r_NUM_PES_FILTER : std_logic_vector(4 downto 0); -- maximo 32 pesos por filtro por canal
-  signal w_RST_NUM_PES : std_logic;
-  signal w_INC_NUM_PES           : std_logic;
+  signal r_NUM_WEIGHT_FILTER : std_logic_vector(4 downto 0); -- maximo 32 pesos por filtro por canal
+  signal w_RST_NUM_WEIGHT : std_logic;
+  signal w_INC_NUM_WEIGHT           : std_logic;
   
   -- seleciona linha dos registradores de deslocamento
-  signal r_PES_ROW_CNTR : std_logic_vector(1 downto 0);
-  signal r_PES_COL_CNTR : std_logic_vector(1 downto 0);
-  signal w_RST_WEIGHTS_COL_CNTR  : std_logic;   
-  signal w_INC_WEIGHTS_COL_CNTR  : std_logic;
-  signal w_RST_WEIGHTS_ROW_CNTR  : std_logic;                    
-  signal w_INC_WEIGHTS_ROW_CNTR  : std_logic;
+  signal r_WEIGHT_ROW_CNTR : std_logic_vector(1 downto 0);
+  signal r_WEIGHT_COL_CNTR : std_logic_vector(1 downto 0);
+  signal w_RST_WEIGHT_COL_CNTR  : std_logic;   
+  signal w_INC_WEIGHT_COL_CNTR  : std_logic;
+  signal w_RST_WEIGHT_ROW_CNTR  : std_logic;                    
+  signal w_INC_WEIGHT_ROW_CNTR  : std_logic;
 
   -- enderecamento dos bias e scales 
   signal r_BIAS_ADDR : std_logic_vector(BIAS_ADDRESS_WIDTH-1 downto 0);
@@ -254,34 +254,34 @@ begin
   end process;
     
 
-  p_NEXT : process (r_STATE, i_GO, i_LOAD, r_WEIGHTS_ADDR, r_BIAS_ADDR, r_CNT_REG_PIX, r_NC_O_SEL,  w_END_COL, w_END_ROW)
+  p_NEXT : process (r_STATE, i_GO, i_LOAD, r_WEIGHT_ADDR, r_BIAS_ADDR, r_CNT_REG_PIX, r_NC_O_SEL,  w_END_COL, w_END_ROW)
   begin
     case (r_STATE) is
       when s_IDLE => -- aguarda sinal go
         if (i_LOAD = '1') then
-          w_NEXT <= s_PES_VERIFY_ADDR;
+          w_NEXT <= s_WEIGHT_VERIFY_ADDR;
         elsif (i_GO = '1') then
           w_NEXT <= s_LOAD_PIX;
         else
           w_NEXT <= s_IDLE;
         end if;
       
-      when s_PES_VERIFY_ADDR => -- verifica endereco de pesos
-        if (r_WEIGHTS_ADDR <= LAST_PES) then 
-          w_NEXT <= s_PES_READ_ENA;
+      when s_WEIGHT_VERIFY_ADDR => -- verifica endereco de pesos
+        if (r_WEIGHT_ADDR <= LAST_WEIGHT) then 
+          w_NEXT <= s_WEIGHT_READ_ENA;
         else
           w_NEXT <= s_BIAS_VERIFY_ADDR;
         end if;        
      
-      when s_PES_READ_ENA => -- havilita leitura de pesos
-        w_NEXT <= s_PES_WRITE_ENA;
+      when s_WEIGHT_READ_ENA => -- havilita leitura de pesos
+        w_NEXT <= s_WEIGHT_WRITE_ENA;
       
-      when s_PES_WRITE_ENA => -- havilita escrita de pesos
-        w_NEXT <= s_PES_INC_ADDR;
+      when s_WEIGHT_WRITE_ENA => -- havilita escrita de pesos
+        w_NEXT <= s_WEIGHT_INC_ADDR;
       
       
-      when s_PES_INC_ADDR => -- incrementa contgador pesos
-        w_NEXT <= s_PES_VERIFY_ADDR;
+      when s_WEIGHT_INC_ADDR => -- incrementa contgador pesos
+        w_NEXT <= s_WEIGHT_VERIFY_ADDR;
         
       when s_BIAS_VERIFY_ADDR => -- verifica endereco de BIAS
         if (r_BIAS_ADDR <= LAST_BIAS) then 
@@ -411,7 +411,7 @@ begin
                 i_RESET_VAL => (others => '0'),
                 o_Q         => r_ADDR2_OFF
               );   
-  
+  o_IN_READ_ENA   <= '1' when (r_STATE = s_LOAD_PIX or r_STATE = s_RIGHT_SHIFT) else '0';
   o_IN_READ_ADDR0 <= w_IN_READ_ADDR + r_ADDR0_OFF;
   o_IN_READ_ADDR1 <= w_IN_READ_ADDR + r_ADDR1_OFF;
   o_IN_READ_ADDR2 <= w_IN_READ_ADDR + r_ADDR2_OFF;  
@@ -540,16 +540,16 @@ begin
   
   -- enderecamento dos pesos
   w_RST_WEIGHT_ADDR <= '1' when (i_CLR = '1' or r_STATE = s_IDLE) else '0';
-  w_INC_WEIGHT_ADDR <= '1' when (r_STATE = s_PES_INC_ADDR) else '0';
-  u_WEIGHTS_ADDR : counter
-              generic map (WEIGHTS_ADDRESS_WIDTH, 1)
+  w_INC_WEIGHT_ADDR <= '1' when (r_STATE = s_WEIGHT_INC_ADDR) else '0';
+  u_WEIGHT_ADDR : counter
+              generic map (WEIGHT_ADDRESS_WIDTH, 1)
               port map 
               (
                 i_CLK       => i_CLK,
                 i_RESET     => w_RST_WEIGHT_ADDR,
                 i_INC       => w_INC_WEIGHT_ADDR,
                 i_RESET_VAL => (others => '0'),
-                o_Q         => r_WEIGHTS_ADDR
+                o_Q         => r_WEIGHT_ADDR
               ); 
   
 
@@ -569,25 +569,25 @@ begin
   
     
   -- reset contador pesos
-  w_RST_NUM_PES <= '1' when ((r_STATE = s_PES_VERIFY_ADDR and r_NUM_PES_FILTER > NUM_PES_FILTER_CHA) or
+  w_RST_NUM_WEIGHT <= '1' when ((r_STATE = s_WEIGHT_VERIFY_ADDR and r_NUM_WEIGHT_FILTER > NUM_WEIGHT_FILTER_CHA) or
                               i_CLR = '1' or r_STATE = s_IDLE) else '0';
-  w_INC_NUM_PES <= '1' when (r_STATE = s_PES_INC_ADDR) else '0';
+  w_INC_NUM_WEIGHT <= '1' when (r_STATE = s_WEIGHT_INC_ADDR) else '0';
   -- conta pesos por filtro
-  u_PES_FILTER_CNTR : counter
+  u_WEIGHT_FILTER_CNTR : counter
               generic map (5, 1)
               port map 
               (
                 i_CLK       => i_CLK,
-                i_RESET     => w_RST_NUM_PES,
-                i_INC       => w_INC_NUM_PES,
+                i_RESET     => w_RST_NUM_WEIGHT,
+                i_INC       => w_INC_NUM_WEIGHT,
                 i_RESET_VAL => (others => '0'),
-                o_Q         => r_NUM_PES_FILTER
+                o_Q         => r_NUM_WEIGHT_FILTER
               ); 
   
   
   -- endereco do NC para carregar pesos  
   w_RST_NC_ADDRESS <= '1' when (i_CLR = '1' or r_STATE = s_IDLE) else '0';
-  w_INC_NC_ADDRESS <= '1' when (r_NUM_PES_FILTER = NUM_PES_FILTER_CHA and r_STATE = s_PES_INC_ADDR) else '0';
+  w_INC_NC_ADDRESS <= '1' when (r_NUM_WEIGHT_FILTER = NUM_WEIGHT_FILTER_CHA and r_STATE = s_WEIGHT_INC_ADDR) else '0';
   u_NC_ADDRESS : counter
               generic map (NC_ADDRESS_WIDTH, 1)
               port map 
@@ -601,43 +601,43 @@ begin
 
   
   -- reseta contador de colunas
-  w_RST_WEIGHTS_COL_CNTR <= '1' when (i_CLR = '1' or (r_STATE = s_PES_VERIFY_ADDR and r_PES_COL_CNTR = "11")) else '0';
-  w_INC_WEIGHTS_COL_CNTR <= '1' when (r_STATE = s_PES_INC_ADDR) else '0';  
+  w_RST_WEIGHT_COL_CNTR <= '1' when (i_CLR = '1' or (r_STATE = s_WEIGHT_VERIFY_ADDR and r_WEIGHT_COL_CNTR = "11")) else '0';
+  w_INC_WEIGHT_COL_CNTR <= '1' when (r_STATE = s_WEIGHT_INC_ADDR) else '0';  
   -- conta colunas de pesos
-  u_WEIGHTS_COL_CNTR : counter
+  u_WEIGHT_COL_CNTR : counter
               generic map (2, 1)
               port map 
               (
                 i_CLK       => i_CLK,
-                i_RESET     => w_RST_WEIGHTS_COL_CNTR,
-                i_INC       => w_INC_WEIGHTS_COL_CNTR,
+                i_RESET     => w_RST_WEIGHT_COL_CNTR,
+                i_INC       => w_INC_WEIGHT_COL_CNTR,
                 i_RESET_VAL => (others => '0'),
-                o_Q         => r_PES_COL_CNTR
+                o_Q         => r_WEIGHT_COL_CNTR
               );
                             
               
   -- reset contador de linha
-  w_RST_WEIGHTS_ROW_CNTR <= '1' when ((i_CLR = '1' or r_STATE = s_IDLE) or 
-                                (r_STATE = s_PES_VERIFY_ADDR and r_PES_ROW_CNTR = "11")) else '0';
-  w_INC_WEIGHTS_ROW_CNTR <= '1' when (r_PES_COL_CNTR = "10" and r_STATE = s_PES_INC_ADDR) else '0';  
+  w_RST_WEIGHT_ROW_CNTR <= '1' when ((i_CLR = '1' or r_STATE = s_IDLE) or 
+                                (r_STATE = s_WEIGHT_VERIFY_ADDR and r_WEIGHT_ROW_CNTR = "11")) else '0';
+  w_INC_WEIGHT_ROW_CNTR <= '1' when (r_WEIGHT_COL_CNTR = "10" and r_STATE = s_WEIGHT_INC_ADDR) else '0';  
   -- conta linhas
-  u_WEIGHTS_ROW_CNTR : counter
+  u_WEIGHT_ROW_CNTR : counter
               generic map (2, 1)
               port map 
               (
                 i_CLK       => i_CLK,
-                i_RESET     => w_RST_WEIGHTS_ROW_CNTR,
-                i_INC       => w_INC_WEIGHTS_ROW_CNTR,
+                i_RESET     => w_RST_WEIGHT_ROW_CNTR,
+                i_INC       => w_INC_WEIGHT_ROW_CNTR,
                 i_RESET_VAL => (others => '0'),
-                o_Q         => r_PES_ROW_CNTR
+                o_Q         => r_WEIGHT_ROW_CNTR
               );
   
   ---------------------------------------------------------------
   
   
   -- sinal para rom de pesos
-  o_PES_READ_ENA  <= '1' when (r_STATE = s_PES_READ_ENA) else '0';
-  o_PES_READ_ADDR <= r_WEIGHTS_ADDR;
+  o_WEIGHT_READ_ENA  <= '1' when (r_STATE = s_WEIGHT_READ_ENA) else '0';
+  o_WEIGHT_READ_ADDR <= r_WEIGHT_ADDR;
     
   -- SINAL PARA ROM DE BIAS E SCALES
   o_BIAS_READ_ENA  <= '1' when (r_STATE = s_BIAS_READ_ENA) else '0';
@@ -651,10 +651,10 @@ begin
   o_NC_ADDR <= r_NC_ADDR;
 
   -- seleciona linha dos registradores de deslocamento
-  o_PES_ROW_SEL <= r_PES_ROW_CNTR;  
+  o_WEIGHT_ROW_SEL <= r_WEIGHT_ROW_CNTR;  
   
   -- habilita shift dos pesos 
-  o_PES_SHIFT_ENA <= '1' when (r_STATE = s_PES_WRITE_ENA) else '0';
+  o_WEIGHT_SHIFT_ENA <= '1' when (r_STATE = s_WEIGHT_WRITE_ENA) else '0';
   
   -- sinaliza fim maq estado
   o_READY <= '1' when (r_STATE = s_END) else '0';

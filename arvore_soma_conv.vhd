@@ -123,14 +123,14 @@ begin
   u_ADD5 : add32 port map (
                   a        =>  w_SUM1_OUT,
                   b        =>  w_SUM2_OUT,
-                  cin      =>  '0',
+                  cin      =>  (w_SUM1_COUT or w_SUM2_COUT),
                   sum1     =>  w_SUM5_OUT,
                   cout     =>  w_SUM5_COUT
                   );
   u_ADD6 : add32 port map (
                   a        =>  w_SUM3_OUT,
                   b        =>  w_SUM4_OUT,
-                  cin      =>  '0',
+                  cin      =>  (w_SUM3_COUT or w_SUM4_COUT),
                   sum1     =>  w_SUM6_OUT,
                   cout     =>  w_SUM6_COUT
                   );  
@@ -139,7 +139,7 @@ begin
   u_ADD7 : add32 port map (
                   a        =>  w_SUM5_OUT,
                   b        =>  w_SUM6_OUT,
-                  cin      =>  '0',
+                  cin      =>  (w_SUM5_COUT or w_SUM6_COUT),
                   sum1     =>  w_SUM7_OUT,
                   cout     =>  w_SUM7_COUT
                   );  
@@ -149,9 +149,8 @@ begin
   u_ADD8 : add32 port map (
                   a        =>  w_SUM7_OUT,
                   b        =>  w_ENTRADAS(8),
-                  cin      =>  '0',
-                  sum1     =>  o_DATA,
-                  cout     =>  w_SUM8_COUT
+                  cin      =>  w_SUM7_COUT,
+                  sum1     =>  o_DATA
                   );
 
 end arch;
