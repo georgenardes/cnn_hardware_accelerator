@@ -16,6 +16,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
+use ieee.numeric_std.all;
 library work;
 use work.types_pkg.all;
 
@@ -36,6 +37,7 @@ entity conv1_op is
     BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
     DATA_WIDTH : integer := 8;
     ADDR_WIDTH : integer := 10;
+    OUT_SEL_WIDTH : integer := 3; -- largura de bits para selecionar buffers de saida 
     SCALE_SHIFT : t_ARRAY_OF_INTEGER
   );
   port 
@@ -104,6 +106,8 @@ entity conv1_op is
     ---------------------------------
     -- sinais para buffers de saida
     ---------------------------------
+    -- seleciona buffers de saida
+    i_OUT_SEL : in std_logic_vector(OUT_SEL_WIDTH-1 downto 0) := (others => '0');
     -- habilita escrita buffer de saida
     i_OUT_WRITE_ENA : in std_logic;
     -- habilita leitura buffer de saida
@@ -324,9 +328,23 @@ architecture arch of conv1_op is
       o_Q         : out std_logic_vector(DATA_WIDTH-1 downto 0)
     );
   end component;
+  
+  -----------------------------------
+  -----------------------------------
+  component generic_demultiplexer is 
+    generic 
+    (
+      SEL_WIDTH : integer := 2;
+      DATA_WIDTH : integer := 8
+    );
+    PORT (  
+      i_A    : IN  std_logic_vector(DATA_WIDTH-1 DOWNTO 0);
+      i_SEL  : IN  std_logic_vector(SEL_WIDTH-1 DOWNTO 0);
+      o_Q    : OUT t_ARRAY_OF_LOGIC_VECTOR(0 to (2**SEL_WIDTH)-1)(DATA_WIDTH-1 downto 0) := (others => (others => '0'))
+    );
+  end component;
+  -----------------------------------
 
-  
-  
   
   -- sinal one-hot para habilitar escrita dos pesos nos NCs
   signal w_NC_PES_ADDR : std_logic_vector (NC_OHE_WIDTH - 1 downto 0);
@@ -334,19 +352,17 @@ architecture arch of conv1_op is
   -- sinal one-hot para habilitar escrita dos bias e scales
   signal w_BIAS_SCALE_ADDR : std_logic_vector (BIAS_OHE_WIDTH-1 downto 0);   
   
-  -- saida de todos NCs
-  -- signal w_o_NC : t_NC_O_VET;
-  signal w_o_NC : t_ARRAY_OF_LOGIC_VECTOR(0 to (C*M) - 1)(31 downto 0);
+  -- saida de todos NCs  
+  signal w_o_NC : t_ARRAY_OF_LOGIC_VECTOR(0 to (2**NC_SEL_WIDTH - 1))(31 downto 0) := (others => (others => '0'));
   
-  -- saida mux NC
-  -- signal w_o_MUX_NC : t_MUX_O_VET;  
+  -- saida mux NC  
   signal w_o_MUX_NC : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
   
   -- saida somador acumulador entre canais de filtros
-  signal w_o_ADD : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
+  signal w_o_ADD : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0) := (others => (others => '0'));
   
   -- saida soma bias + saida acumulador
-  signal w_o_BIAS_ACC : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
+  signal w_o_BIAS_ACC : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0) := (others => (others => '0'));
   
   -- contador endereco saida
   signal r_OUT_ADDR : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0'); 
@@ -361,13 +377,37 @@ architecture arch of conv1_op is
   -- saida registradores bias
   signal w_o_BIAS_REG : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
   
+   -- habilita escrita em reg bias
+  signal w_BIAS_WRITE_ENA : std_logic;
+  -- habilita escrita em reg scale
+  signal w_SCALE_WRITE_ENA : std_logic;
+  
+  
   -- entrada one-hot para reg scale
   signal w_SCALE_REG_ENA : std_logic_vector(M-1 downto 0); 
       
   -- saida registradores scale
   signal w_o_SCALE_REG : t_ARRAY_OF_LOGIC_VECTOR(0 to M - 1)(31 downto 0);
   
-    
+  
+  -- sinais para somadores      
+  signal w_ADD_OUT : STD_LOGIC_VECTOR(31  downto 0);
+  
+   -- saida scale down
+   signal w_o_SCALE_DOWN : std_logic_vector(63 downto 0) := (others => '0');
+   
+   -- cast para 32 bits
+   signal w_o_CAST : std_logic_vector(31 downto 0) := (others => '0');   
+   
+   -- valor maior q 255
+   signal w_GTHAN_255 : std_logic;
+   
+   -- SAIDA DEXMUX DE BUFFERS DE SAIDAS
+   signal w_DEMUX_OUT : t_ARRAY_OF_LOGIC_VECTOR(0 to (2**OUT_SEL_WIDTH-1))(31 downto 0) := (others => (others => '0'));
+   
+   -- habilita escrita em buffers de saida
+   signal w_OUT_ADDR_ENA : std_logic_vector(M-1 downto 0) := (others => '0');
+  
 begin
   
   -- seleciona configuração de conexao entre buffer e registradores de deslocamento
@@ -385,8 +425,18 @@ begin
       signal w_RAM_PIX_ROW_3 : STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0);
       signal w_NC_PIX_ROW_1 : STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0);
       signal w_NC_PIX_ROW_2 : STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0);
-      signal w_NC_PIX_ROW_3 : STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0);                
+      signal w_NC_PIX_ROW_3 : STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0);    
 
+      -- NC pixel de saida
+      signal w_o_PIX       :  STD_LOGIC_VECTOR (31 downto 0) := (others => '0'); 
+      
+      -- habilita deslocamento de pesos
+      signal w_WEIGHT_SHIFT_ENABLE : std_logic := '0';     
+      
+      -- entrada MUX saída NCs      
+      signal w_MUX_I_VET : t_ARRAY_OF_LOGIC_VECTOR(0 to (2**NC_SEL_WIDTH)-1)(31 downto 0) := (others => (others => '0'));                   
+      
+    
     begin
     
     
@@ -432,174 +482,153 @@ begin
                  
     
     -----------------------------------
-    -- para cada filtro
-    GEN_FILTERS:   
-      for j in 0 to M-1 generate
-      
-        -- NC pixel de saida
-        signal w_o_PIX       :  STD_LOGIC_VECTOR (31 downto 0) := (others => '0');        
-        signal w_cout, w_overflow, w_underflow  : std_logic := '0';
-				signal w_WEIGHT_SHIFT_ENABLE : std_logic := '0';                       
-
-      begin
+    -- NCS
 		
-			-- habilita deslocamento de peso                       
-      w_WEIGHT_SHIFT_ENABLE <= w_NC_PES_ADDR((j*C)+i) AND i_WEIGHT_SHIFT_ENA;
+    -- habilita deslocamento de peso                       
+    w_WEIGHT_SHIFT_ENABLE <= w_NC_PES_ADDR(i) AND i_WEIGHT_SHIFT_ENA;
 
-      -- nucleos convolucionais 
-      NCX : nucleo_convolucional             
-              port map 
-              (
-                i_CLK           => i_CLK,          
-                i_CLR           => i_CLR,           
-                i_PIX_SHIFT_ENA => i_PIX_SHIFT_ENA,
-                i_WEIGHT_SHIFT_ENA => w_WEIGHT_SHIFT_ENABLE,  
-                i_PIX_ROW_1     => w_NC_PIX_ROW_1,    
-                i_PIX_ROW_2     => w_NC_PIX_ROW_2,    
-                i_PIX_ROW_3     => w_NC_PIX_ROW_3,  
-                i_WEIGHT_ROW_SEL   => i_WEIGHT_ROW_SEL, -- habilita linha de peso
-                i_WEIGHT           => i_WEIGHT,       -- peso de entrada
-                o_PIX           => w_o_PIX
-              );
-              
-      -- registradores de saida para os NCs
-      REGX : registrador 
-              generic map (32)
-              port map 
-              (
-                i_CLK,
-                i_CLR,
-                '1',
-                w_o_PIX,          
-                w_o_NC((j*C)+i)  -- indexação (000,111,222,333,444,555)
-              );
-    end generate GEN_FILTERS;
-  end generate GEN_CHANNELS;
-  
-  
-  
-  -- multiplexadores e acumulador para resultado da convolucao
-  GEN_FILTER_OUT: 
-  for i in 0 to M-1 generate
-    
-    -- entrada MUX saída NCs      
-    signal w_MUX_I_VET : t_ARRAY_OF_LOGIC_VECTOR(0 to (2**NC_SEL_WIDTH)-1)(31 downto 0) := (others => (others => '0'));
-        
-    -- sinais para somadores
-    -- signal w_COUT, w_OVERFLOW, w_UNDERFLOW : std_logic;
-    signal w_ADD_OUT : STD_LOGIC_VECTOR(31  downto 0);
-    
-    -- sinal de saida relu
-    signal w_RELU_OUT : STD_LOGIC_VECTOR(7 downto 0);       
-    
-    -- saida scale down
-    signal w_o_SCALE_DOWN : std_logic_vector(63 downto 0) := (others => '0');
-    
-    -- cast para 32 bits
-    signal w_o_CAST : std_logic_vector(31 downto 0) := (others => '0');
-
-
-		signal w_BIAS_WRITE_ENA : std_logic;
-		signal w_SCALE_WRITE_ENA : std_logic;
-    
-  begin
-    
-    -- saida NC entrada mux
-    -----------------------
-    GEN_MUX_C:
-    for j in 0 to C-1 generate
-      w_MUX_I_VET(j) <= w_o_NC((i*C)+j);
-    end generate GEN_MUX_C;
-    -----------------------
-    
-    
-    -- mux para soma dos valores de saida
-    MUXX : generic_multiplexer 
-                generic map (NC_SEL_WIDTH, 32)
-                port map
-                (
-                  i_A  => w_MUX_I_VET,
-                  i_SEL=> i_NC_O_SEL,
-                  o_Q  => w_o_MUX_NC(i)
-                );
-    
-    -- somador para acumular saida dos canais de um NC
-    ADDX : add32
+    -- nucleos convolucionais 
+    NCX : nucleo_convolucional             
             port map 
             (
-              a         => w_o_ADD(i),
-              b         => w_o_MUX_NC(i),
-              cin       => '0',
-              sum1      => w_ADD_OUT
-              -- cout      => w_COUT,
-              -- overflow  => w_OVERFLOW,
-              -- underflow => w_UNDERFLOW
+              i_CLK              => i_CLK,          
+              i_CLR              => i_CLR,           
+              i_PIX_SHIFT_ENA    => i_PIX_SHIFT_ENA,
+              i_WEIGHT_SHIFT_ENA => w_WEIGHT_SHIFT_ENABLE,  
+              i_PIX_ROW_1        => w_NC_PIX_ROW_1,    
+              i_PIX_ROW_2        => w_NC_PIX_ROW_2,    
+              i_PIX_ROW_3        => w_NC_PIX_ROW_3,  
+              i_WEIGHT_ROW_SEL   => i_WEIGHT_ROW_SEL, -- habilita linha de peso
+              i_WEIGHT           => i_WEIGHT,         -- peso de entrada
+              o_PIX              => w_o_PIX
             );
-    
-    -- registrador para acumular saida dos canais de um NC
+            
+    -- registradores de saida para os NCs
     REGX : registrador 
             generic map (32)
             port map 
             (
               i_CLK,
-              i_ACC_RST,
-              i_ACC_ENA,
-              w_ADD_OUT,          
-              w_o_ADD(i)  
-            );    
-    
-		-- habilita escrita reg bias
-		w_BIAS_WRITE_ENA <= w_BIAS_SCALE_ADDR(i) and i_BIAS_WRITE_ENA;
-
-    -- registrador de BIAS    
-    BIAS_REGX : registrador 
-            generic map (32)
-            port map 
-            (
-              i_CLK,
               i_CLR,
-              w_BIAS_WRITE_ENA, 
-              i_BIAS,           -- entrada (saida da ROM bias)
-              w_o_BIAS_REG(i)  
-            );
-    
-		-- habilita escrita reg scale
-		w_SCALE_WRITE_ENA <= w_BIAS_SCALE_ADDR(i+M) and i_SCALE_WRITE_ENA;
-
-    -- registrador de scale down    
-    SCALE_REGX : registrador 
-            generic map (32)
-            port map 
-            (
-              i_CLK,
-              i_CLR,
-              w_SCALE_WRITE_ENA, -- saida one-hot para reg scale
-              i_BIAS,          -- entrada (saida da ROM bias)
-              w_o_SCALE_REG(i)  
-            );
-    
-    -- adiciona saida acumulador + bias
-    w_o_BIAS_ACC(i) <= w_o_ADD(i) + w_o_BIAS_REG(i); 
-    
-    -- scale down (32*32 = 64bits)
-    -- multiplex entre 0 e valor do scale down selecionado pelo bit de sinal    
-    w_o_SCALE_DOWN <= (others => '0') when (w_o_BIAS_ACC(i)(31) = '1') else w_o_BIAS_ACC(i) * w_o_SCALE_REG(i);
-        
-    -- cast para 32 bits
-    w_o_CAST(31 downto SCALE_SHIFT(i)) <= w_o_SCALE_DOWN(63 downto 32+SCALE_SHIFT(i));    
-    
-    
-    -- bloco RELU
-    RELUX : relu 
-              generic map (DATA_WIDTH => 8)    
+              '1',
+              w_o_PIX,          
+              w_o_NC(i) 
+            );                             
+            
+  end generate GEN_CHANNELS;
+  
+  
+  
+  -- mux para soma dos valores de saida
+  MUXX : generic_multiplexer 
+              generic map (NC_SEL_WIDTH, 32)
               port map
               (
-                -- pixel de entrada
-                i_PIX => w_o_CAST(SCALE_SHIFT(i)+7 downto SCALE_SHIFT(i)),
-                -- pixel de saida
-                o_PIX => w_RELU_OUT
+                i_A  => w_o_NC,
+                i_SEL=> i_NC_O_SEL,
+                o_Q  => w_o_MUX_NC(0)
               );
+
+  -- somador para acumular saida dos canais de um NC
+  ADDX : add32
+          port map 
+          (
+            a         => w_o_ADD(0),
+            b         => w_o_MUX_NC(0),
+            cin       => '0',
+            sum1      => w_ADD_OUT
+          );
+
+  -- registrador para acumular saida dos canais de um NC
+  REGX : registrador 
+          generic map (32)
+          port map 
+          (
+            i_CLK,
+            i_ACC_RST,
+            i_ACC_ENA,
+            w_ADD_OUT,          
+            w_o_ADD(0)  
+          ); 
+        
+  -- habilita escrita reg bias
+  w_BIAS_WRITE_ENA <= i_BIAS_WRITE_ENA;
+
+  -- registrador de BIAS    
+  BIAS_REGX : registrador 
+          generic map (32)
+          port map 
+          (
+            i_CLK,
+            i_CLR,
+            w_BIAS_WRITE_ENA, 
+            i_BIAS,           -- entrada (saida da ROM bias)
+            w_o_BIAS_REG(0)  
+          );
+
+  -- habilita escrita reg scale
+  w_SCALE_WRITE_ENA <= i_SCALE_WRITE_ENA;
+
+  -- registrador de scale down    
+  SCALE_REGX : registrador 
+          generic map (32)
+          port map 
+          (
+            i_CLK,
+            i_CLR,
+            w_SCALE_WRITE_ENA, -- saida one-hot para reg scale
+            i_BIAS,          -- entrada (saida da ROM bias)
+            w_o_SCALE_REG(0)  
+          );
+          
+
+  -- adiciona saida acumulador + bias
+  w_o_BIAS_ACC(0) <= w_o_ADD(0) + w_o_BIAS_REG(0); 
+
+  -- scale down (32*32 = 64bits)
+  -- multiplex entre 0 e valor do scale down selecionado pelo bit de sinal    
+  w_o_SCALE_DOWN <= (others => '0') when (w_o_BIAS_ACC(0)(31) = '1') else w_o_BIAS_ACC(0) * w_o_SCALE_REG(0);
+
+  -- cast para 32 bits
+  w_o_CAST(31 downto 0) <= w_o_SCALE_DOWN(63 downto 32);    
+      
+  
+  -- demux entre NC e buffers de saida
+  u_DEMUX : generic_demultiplexer
+                generic map 
+                (
+                  SEL_WIDTH => OUT_SEL_WIDTH,
+                  DATA_WIDTH => 32
+                )
+                port map 
+                (
+                  i_A    => w_o_CAST,
+                  i_SEL  => i_OUT_SEL,
+                  o_Q    => w_DEMUX_OUT
+                );
+  
+  -- sinaliza q valor maior q 255
+  w_GTHAN_255 <= '1' when (w_o_CAST > std_logic_vector(to_unsigned(255, 32))) else '0';
+  
+  -- buffers de saida
+  GEN_FILTER_OUT: 
+  for i in 0 to M-1 generate
+    -- clipa valores > 255
+    signal w_255_CLIP : std_logic_vector (7 downto 0);
     
+    -- habilita escrita na RAM de saida
+    signal w_OUT_WRITE_ENA : std_logic;
+   
+  begin
+      
+    
+    -- clipa valor em 255
+    -- w_255_CLIP <= "11111111" when (w_GTHAN_255 = '1') else w_DEMUX_OUT(i)(SCALE_SHIFT(i)+7 downto SCALE_SHIFT(i));
+    w_255_CLIP <= w_DEMUX_OUT(i)(SCALE_SHIFT(i)+7 downto SCALE_SHIFT(i));        
+    
+    -- habilita escria no buffer de saida
+    w_OUT_WRITE_ENA <= '1' when (i_OUT_WRITE_ENA = '1' and w_OUT_ADDR_ENA(i) = '1') else '0';
+         
     -- buffer de saida
     OUT_BUFFER : io_buffer 
               generic map 
@@ -612,9 +641,9 @@ begin
               (
                 i_CLK            ,
                 i_CLR            ,
-                w_RELU_OUT       , -- saida bloco relu/ entrada buffer
+                w_255_CLIP       , -- saida demux / entrada buffer
                 i_OUT_READ_ENA   , -- habilita leitura do bloco de saida
-                i_OUT_WRITE_ENA  , -- habilita escrita no bloco de saida
+                w_OUT_WRITE_ENA  , -- habilita escrita no bloco de saida
                 "00"             , -- não necessario selecionar, pois só um bloco de saida por buffer
                 i_OUT_READ_ADDR  , -- endereco de leitura
                 i_OUT_READ_ADDR  , -- não importa (apenas um bloco)
@@ -627,29 +656,38 @@ begin
   end generate GEN_FILTER_OUT;
   
     
+  
+  
   -- decodifica endereco de NC para habilitar escrita nos reg de deslocamento PESOS
   u_OHE_PES : one_hot_encoder
-          generic map (DATA_WIDTH => NC_ADDRESS_WIDTH, -- bits para enderecamento NC
-                       OUT_WIDTH  => M*C) -- numero de NC
+          generic map 
+          (
+            DATA_WIDTH => NC_ADDRESS_WIDTH, -- bits para enderecamento NC
+            OUT_WIDTH  => M*C
+          ) -- numero de NC
           port map 
           (
-             i_DATA => i_WEIGHT_SHIFT_ADDR,
-             o_DATA => w_NC_PES_ADDR
+            i_DATA => i_WEIGHT_SHIFT_ADDR,
+            o_DATA => w_NC_PES_ADDR
           );  
   
+    
   
-  -- decodifica endereco da memoria ROM_BIAS para habilitar registradores de BIAS e SCALE
-  u_OHE_BIAS : one_hot_encoder
-          generic map (DATA_WIDTH => BIAS_ADDRESS_WIDTH, -- bits para enderecamento REG_BIAS + REG_SCALE
-                       OUT_WIDTH => 2*M) -- numero de registradores
-          port map 
+  -- decodifica endereco para escrita
+  u_OHE_OUT_BUFF : one_hot_encoder 
+          generic map 
           (
-             i_DATA => i_BIAS_WRITE_ADDR,
-             o_DATA => w_BIAS_SCALE_ADDR
+            DATA_WIDTH => OUT_SEL_WIDTH,
+            OUT_WIDTH  => M
+          )
+          port map
+          (
+            i_DATA => i_OUT_SEL,
+            o_DATA => w_OUT_ADDR_ENA
           );
+   
   
-  
-  
+  -- reseta endereco de saida
   w_RST_OUT_ADDR <= '1' when (i_CLR = '1' or i_OUT_CLR_ADDR = '1') else '0';
   
   -- contador de endereco de saida 

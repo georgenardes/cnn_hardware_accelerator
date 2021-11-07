@@ -30,7 +30,7 @@ BEGIN
   process (i_A, i_SEL)
   begin
     for i in 0 to 34 loop
-      if (i = to_integer(signed(i_SEL))) then 
+      if (i = to_integer(unsigned(i_SEL))) then 
         w_OUT(i) <= i_A; -- caso valor selecionado
       else
         w_OUT(i) <= "00000000"; -- caso valor não selecionado
