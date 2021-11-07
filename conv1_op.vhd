@@ -663,7 +663,7 @@ begin
           generic map 
           (
             DATA_WIDTH => NC_ADDRESS_WIDTH, -- bits para enderecamento NC
-            OUT_WIDTH  => M*C
+            OUT_WIDTH  => C
           ) -- numero de NC
           port map 
           (

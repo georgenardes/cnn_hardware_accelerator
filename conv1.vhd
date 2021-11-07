@@ -35,7 +35,7 @@ entity conv1 is
     BIAS_OHE_WIDTH : integer := 12; 
     WEIGHT_ADDRESS_WIDTH : integer := 10; 
     BIAS_ADDRESS_WIDTH : integer := 6; 
-    SCALE_SHIFT  : t_ARRAY_OF_INTEGER(0 to  5) := (8, 8, 7, 8, 8, 9);
+    SCALE_SHIFT  : t_ARRAY_OF_INTEGER; -- (0 to  5) := (8, 8, 7, 8, 8, 9);
     WEIGHT_FILE_NAME : string := "weights_and_biases/conv1.mif";
     BIAS_FILE_NAME    : string := "weights_and_biases/conv1_bias.mif";
     OUT_SEL_WIDTH : integer := 3 -- largura de bits para selecionar buffers de saida    
