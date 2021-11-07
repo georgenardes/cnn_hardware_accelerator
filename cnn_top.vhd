@@ -16,7 +16,7 @@ entity cnn_top is
     i_CLR       : in STD_LOGIC;
     i_GO        : in STD_LOGIC;
     i_ADDR      : in std_logic_vector(9 downto 0);
-    i_SEL		    : in std_logic_vector(6 downto 0) := (others => '0');
+    i_SEL		    : in std_logic_vector(5 downto 0) := (others => '0');
     o_DATA      : out std_logic_vector(7 downto 0);
     o_READY     : out std_logic
   );

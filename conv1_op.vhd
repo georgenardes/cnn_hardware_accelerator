@@ -399,9 +399,6 @@ architecture arch of conv1_op is
    -- cast para 32 bits
    signal w_o_CAST : std_logic_vector(31 downto 0) := (others => '0');   
    
-   -- valor maior q 255
-   signal w_GTHAN_255 : std_logic;
-   
    -- SAIDA DEXMUX DE BUFFERS DE SAIDAS
    signal w_DEMUX_OUT : t_ARRAY_OF_LOGIC_VECTOR(0 to (2**OUT_SEL_WIDTH-1))(31 downto 0) := (others => (others => '0'));
    
@@ -606,9 +603,7 @@ begin
                   i_SEL  => i_OUT_SEL,
                   o_Q    => w_DEMUX_OUT
                 );
-  
-  -- sinaliza q valor maior q 255
-  w_GTHAN_255 <= '1' when (w_o_CAST > std_logic_vector(to_unsigned(255, 32))) else '0';
+    
   
   -- buffers de saida
   GEN_FILTER_OUT: 
@@ -618,13 +613,18 @@ begin
     
     -- habilita escrita na RAM de saida
     signal w_OUT_WRITE_ENA : std_logic;
+       
+    -- valor maior q 255
+    signal w_GTHAN_255 : std_logic;
    
   begin
       
-    
+    -- sinaliza q valor maior q 255
+    w_GTHAN_255 <= '1' when (w_o_CAST(31 downto SCALE_SHIFT(i)) > std_logic_vector(to_unsigned(255, 32))) else '0';
+  
     -- clipa valor em 255
-    -- w_255_CLIP <= "11111111" when (w_GTHAN_255 = '1') else w_DEMUX_OUT(i)(SCALE_SHIFT(i)+7 downto SCALE_SHIFT(i));
-    w_255_CLIP <= w_DEMUX_OUT(i)(SCALE_SHIFT(i)+7 downto SCALE_SHIFT(i));        
+    w_255_CLIP <= "11111111" when (w_GTHAN_255 = '1') else w_DEMUX_OUT(i)(SCALE_SHIFT(i)+7 downto SCALE_SHIFT(i));
+        
     
     -- habilita escria no buffer de saida
     w_OUT_WRITE_ENA <= '1' when (i_OUT_WRITE_ENA = '1' and w_OUT_ADDR_ENA(i) = '1') else '0';
