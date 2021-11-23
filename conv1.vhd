@@ -37,15 +37,14 @@ entity conv1 is
     BIAS_ADDRESS_WIDTH : integer := 6; 
     SCALE_SHIFT  : t_ARRAY_OF_INTEGER; -- (0 to  5) := (8, 8, 7, 8, 8, 9);
     WEIGHT_FILE_NAME : string := "weights_and_biases/conv1.mif";
-    BIAS_FILE_NAME    : string := "weights_and_biases/conv1_bias.mif"                
+    BIAS_FILE_NAME    : string := "weights_and_biases/conv1_bias.mif";
+    OUT_SEL_WIDTH : integer := 3 -- largura de bits para selecionar buffers de saida    
   );
   port 
   (
     i_CLK       : in STD_LOGIC;
     i_CLR       : in STD_LOGIC;
     i_GO        : in STD_LOGIC;
-    i_LOAD      : in std_logic;
-    o_LOADED    : out std_logic;
     o_READY     : out std_logic;
     
     -- sinais para comunicação com rebuffers
@@ -151,15 +150,14 @@ architecture arch of conv1 is
       LAST_WEIGHT : std_logic_vector := "10100010"; -- quantidade de pesos (162)
       LAST_BIAS : std_logic_vector := "1100"; -- quantidade de bias e scale (12)    
       LAST_ROW : std_logic_vector := "100010"; -- 34 (0 a 33 = 34 pixels) (pixels de pad)
-      LAST_COL : std_logic_vector := "11010"   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
+      LAST_COL : std_logic_vector := "11010";   -- 26 (0 a 25 = 26 pixels) (2 pixels de pad)
+      OUT_SEL_WIDTH : integer := 3 -- largura de bits para selecionar buffers de saida     
     );
 
     port (
       i_CLK           : in  std_logic;
       i_CLR           : in  std_logic;
       i_GO            : in  std_logic; -- inicia maq
-      i_LOAD          : in  std_logic; -- carrega pesos
-      o_LOADED        : out std_logic;
       o_READY         : out std_logic; -- fim maq
       o_IN_READ_ENA   : out  std_logic;
       o_IN_READ_ADDR0 : out std_logic_vector (ADDR_WIDTH - 1 downto 0);
@@ -178,7 +176,8 @@ architecture arch of conv1 is
       o_NC_O_SEL      : out  std_logic_vector(NC_SEL_WIDTH - 1 downto 0);
       o_ACC_ENA       : out  std_logic;
       o_ACC_RST       : out  std_logic;
-      o_ROW_SEL       : out std_logic_vector(1 downto 0); 
+      o_ROW_SEL       : out std_logic_vector(1 downto 0);       
+      o_OUT_SEL       : out std_logic_vector(OUT_SEL_WIDTH-1 downto 0) := (others => '0');    
       o_OUT_WRITE_ENA : out  std_logic;
       o_OUT_INC_ADDR  : out  std_logic; 
       o_OUT_CLR_ADDR : out std_logic      
@@ -205,6 +204,7 @@ architecture arch of conv1 is
       BIAS_ADDRESS_WIDTH : integer := 5; -- numero de bits para enderecar registradores de bias e scales
       DATA_WIDTH : integer := 8;
       ADDR_WIDTH : integer := 10;
+      OUT_SEL_WIDTH : integer := 3; 
       SCALE_SHIFT : t_ARRAY_OF_INTEGER
     );
     port 
@@ -231,7 +231,8 @@ architecture arch of conv1 is
       i_NC_O_SEL : IN  std_logic_vector(NC_SEL_WIDTH - 1 DOWNTO 0); 
       i_ACC_ENA : in std_logic;
       i_ACC_RST : in std_logic;
-      i_ROW_SEL : in std_logic_vector(1 downto 0);    
+      i_ROW_SEL : in std_logic_vector(1 downto 0);   
+      i_OUT_SEL : in std_logic_vector(OUT_SEL_WIDTH-1 downto 0) := (others => '0'); 
       i_OUT_WRITE_ENA : in std_logic;
       i_OUT_READ_ENA : in std_logic;
       i_OUT_READ_ADDR : in std_logic_vector (9 downto 0) := (others => '0');
@@ -283,7 +284,7 @@ architecture arch of conv1 is
   signal w_WEIGHT_SHIFT_ENA : std_logic;
   
   -- endereco do NC para carregar pesos     
-  signal w_NC_ADDR : std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0);    
+  signal w_NC_ADDR : std_logic_vector(NC_ADDRESS_WIDTH-1 downto 0) := (others => '0');    
   
   -- seleciona linha dos registradores de deslocamento
   signal w_WEIGHT_ROW_SEL : std_logic_vector(1 downto 0);
@@ -303,6 +304,8 @@ architecture arch of conv1 is
   ---------------------------------
   -- sinais para buffers de saida
   ---------------------------------
+  -- seleciona buffer de saida
+  signal w_OUT_SEL : std_logic_vector(OUT_SEL_WIDTH-1 downto 0) := (others => '0');  
   -- habilita escrita buffer de saida
   signal w_OUT_WRITE_ENA : std_logic;
   -- incrementa endereco de saida
@@ -361,21 +364,20 @@ begin
                 ADDR_WIDTH            => ADDR_WIDTH,    
                 NC_SEL_WIDTH          => NC_SEL_WIDTH, 
                 NC_ADDRESS_WIDTH      => NC_ADDRESS_WIDTH, 
-                WEIGHT_ADDRESS_WIDTH => WEIGHT_ADDRESS_WIDTH, 
+                WEIGHT_ADDRESS_WIDTH  => WEIGHT_ADDRESS_WIDTH, 
                 BIAS_ADDRESS_WIDTH    => BIAS_ADDRESS_WIDTH,                 
-                NUM_WEIGHT_FILTER_CHA    => NUM_WEIGHT_FILTER_CHA, 
-                LAST_WEIGHT    => LAST_WEIGHT,  
-                LAST_BIAS   => LAST_BIAS, 
-                LAST_ROW    => LAST_ROW,  
-                LAST_COL    => LAST_COL   
+                NUM_WEIGHT_FILTER_CHA => NUM_WEIGHT_FILTER_CHA, 
+                LAST_WEIGHT     => LAST_WEIGHT,  
+                LAST_BIAS       => LAST_BIAS, 
+                LAST_ROW        => LAST_ROW,  
+                LAST_COL        => LAST_COL,
+                OUT_SEL_WIDTH   => OUT_SEL_WIDTH
               )
               port map
               (
                 i_CLK           => i_CLK,
                 i_CLR           => i_CLR,
-                i_GO            => i_GO,
-                i_LOAD          => i_LOAD,
-                o_LOADED        => o_LOADED,
+                i_GO            => i_GO,                
                 o_READY         => o_READY,
                 o_IN_READ_ENA   => w_IN_READ_ENA,
                 o_IN_READ_ADDR0 => w_IN_READ_ADDR0 ,
@@ -395,6 +397,7 @@ begin
                 o_ACC_ENA       => w_ACC_ENA,
                 o_ACC_RST       => w_ACC_RST,
                 o_ROW_SEL       => w_ROW_SEL,
+                o_OUT_SEL       =>  w_OUT_SEL,
                 o_OUT_WRITE_ENA => w_OUT_WRITE_ENA,
                 o_OUT_INC_ADDR  => w_OUT_INC_ADDR,
                 o_OUT_CLR_ADDR  => w_OUT_CLR_ADDR
@@ -417,7 +420,8 @@ begin
                 BIAS_OHE_WIDTH    => BIAS_OHE_WIDTH,
                 WEIGHT_ADDRESS_WIDTH => WEIGHT_ADDRESS_WIDTH,
                 BIAS_ADDRESS_WIDTH => BIAS_ADDRESS_WIDTH,
-                SCALE_SHIFT       => SCALE_SHIFT
+                SCALE_SHIFT        => SCALE_SHIFT,
+                OUT_SEL_WIDTH      => OUT_SEL_WIDTH
               )
               port map
               (
@@ -443,7 +447,8 @@ begin
                 i_NC_O_SEL      => w_NC_O_SEL,
                 i_ACC_ENA       => w_ACC_ENA,
                 i_ACC_RST       => w_ACC_RST,
-                i_ROW_SEL       => w_ROW_SEL,    
+                i_ROW_SEL       => w_ROW_SEL,  
+                i_OUT_SEL       =>  w_OUT_SEL,
                 i_OUT_WRITE_ENA => w_OUT_WRITE_ENA,
                 i_OUT_READ_ENA  => i_OUT_READ_ENA, -- leitura buffer saida
                 i_OUT_READ_ADDR => i_OUT_READ_ADDR, -- endereco leitura buffer saida

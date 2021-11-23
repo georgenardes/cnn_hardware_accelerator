@@ -24,11 +24,9 @@ architecture arch of cnn_top_tb is
       i_CLK       : in STD_LOGIC;
       i_CLR       : in STD_LOGIC;
       i_GO        : in STD_LOGIC;
-      i_LOAD      : in std_logic;
       i_ADDR      : in std_logic_vector(9 downto 0);
       i_SEL		    : in std_logic_vector(6 downto 0) := (others => '0');
-      o_DATA      : out std_logic_vector(7 downto 0);
-      o_LOADED    : out std_logic;
+      o_DATA      : out std_logic_vector(7 downto 0);      
       o_READY     : out std_logic
     );
   end component;
@@ -52,12 +50,10 @@ begin
           (
             i_CLK    => w_CLK  ,
             i_CLR    => w_CLR  ,
-            i_GO     => w_GO   ,
-            i_LOAD   => w_LOAD ,
+            i_GO     => w_GO   ,            
             i_ADDR   => w_ADDR ,
             i_SEL	   => w_SEL	,
             o_DATA   => w_DATA ,
-            o_LOADED => w_LOADED,
             o_READY  => w_READY
           );
           
@@ -84,13 +80,6 @@ begin
 		w_CLR <= '0'; -- clear
 		wait for c_CLK_PERIOD; 
 		---------------------------
-
-    -- carrega pesos
-		w_LOAD <= '1';
-		wait for c_CLK_PERIOD;
-		w_LOAD <= '0';
-		wait until w_LOADED = '1';
-		-------------------
 
 		-- inicia processamento
 		w_GO <= '1';

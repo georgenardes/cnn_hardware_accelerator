@@ -15,7 +15,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity arvore_soma_conv is
-  generic (i_DATA_WIDTH : INTEGER := 32;           
+  generic (i_DATA_WIDTH : INTEGER := 16;           
            o_DATA_WIDTH : INTEGER := 32);
 
   port (
@@ -39,10 +39,6 @@ architecture arch of arvore_soma_conv is
          w_SUM5_OUT, w_SUM6_OUT, 
          w_SUM7_OUT : STD_LOGIC_VECTOR(o_DATA_WIDTH -1 downto 0);
   
-  -- carry out de somadores
-  signal w_SUM1_COUT, w_SUM2_COUT, w_SUM3_COUT, 
-         w_SUM4_COUT, w_SUM5_COUT, w_SUM6_COUT,
-         w_SUM7_COUT,  w_SUM8_COUT : STD_LOGIC;
   
   
   -- Sinais para adaptação das entradas de 16 bits
@@ -77,7 +73,7 @@ begin
   w_ENTRADAS(7)(15 downto 0) <= i_DATA8;
   w_ENTRADAS(8)(15 downto 0) <= i_DATA9;  
   
-  -- conversão para 32b considerando bit de sinal
+  -- conversão para 32b com extensão de sinal
   w_ENTRADAS(0)(31 downto 16) <= (others => '1') when (i_DATA1 (15) = '1') else (others => '0');
   w_ENTRADAS(1)(31 downto 16) <= (others => '1') when (i_DATA2 (15) = '1') else (others => '0');
   w_ENTRADAS(2)(31 downto 16) <= (others => '1') when (i_DATA3 (15) = '1') else (others => '0');
@@ -89,68 +85,75 @@ begin
   w_ENTRADAS(8)(31 downto 16) <= (others => '1') when (i_DATA9 (15) = '1') else (others => '0'); 
     
   
-  -- primeira coluna de somadores
-  u_ADD1 : add32 port map (
-                  a        =>  w_ENTRADAS(0), 
-                  b        =>  w_ENTRADAS(1), 
-                  cin      =>  '0',
-                  sum1     =>  w_SUM1_OUT,
-                  cout     =>  w_SUM1_COUT
-                  );
-  u_ADD2 : add32 port map (
-                  a        =>  w_ENTRADAS(2), 
-                  b        =>  w_ENTRADAS(3), 
-                  cin      =>  '0',
-                  sum1     =>  w_SUM2_OUT,
-                  cout     =>  w_SUM2_COUT
-                  );                
-  u_ADD3 : add32 port map (
-                  a        =>  w_ENTRADAS(4), 
-                  b        =>  w_ENTRADAS(5), 
-                  cin      =>  '0',
-                  sum1     =>  w_SUM3_OUT,
-                  cout     =>  w_SUM3_COUT
-                  );
-  u_ADD4 : add32 port map (
-                  a        =>  w_ENTRADAS(6),
-                  b        =>  w_ENTRADAS(7),
-                  cin      =>  '0',
-                  sum1     =>  w_SUM4_OUT,
-                  cout     =>  w_SUM4_COUT
-                  );
-                  
-  -- segunda coluna de somadores
-  u_ADD5 : add32 port map (
-                  a        =>  w_SUM1_OUT,
-                  b        =>  w_SUM2_OUT,
-                  cin      =>  (w_SUM1_COUT or w_SUM2_COUT),
-                  sum1     =>  w_SUM5_OUT,
-                  cout     =>  w_SUM5_COUT
-                  );
-  u_ADD6 : add32 port map (
-                  a        =>  w_SUM3_OUT,
-                  b        =>  w_SUM4_OUT,
-                  cin      =>  (w_SUM3_COUT or w_SUM4_COUT),
-                  sum1     =>  w_SUM6_OUT,
-                  cout     =>  w_SUM6_COUT
-                  );  
-                  
-  -- terceira coluna de somadores
-  u_ADD7 : add32 port map (
-                  a        =>  w_SUM5_OUT,
-                  b        =>  w_SUM6_OUT,
-                  cin      =>  (w_SUM5_COUT or w_SUM6_COUT),
-                  sum1     =>  w_SUM7_OUT,
-                  cout     =>  w_SUM7_COUT
-                  );  
-                  
+  w_SUM1_OUT <= STD_LOGIC_VECTOR(signed(w_ENTRADAS(0)) + signed(w_ENTRADAS(1)));
+  w_SUM2_OUT <= STD_LOGIC_VECTOR(signed(w_ENTRADAS(2)) + signed(w_ENTRADAS(3)));
+  w_SUM3_OUT <= STD_LOGIC_VECTOR(signed(w_ENTRADAS(4)) + signed(w_ENTRADAS(5)));
+  w_SUM4_OUT <= STD_LOGIC_VECTOR(signed(w_ENTRADAS(6)) + signed(w_ENTRADAS(7)));
+  
+  w_SUM5_OUT <= STD_LOGIC_VECTOR(signed(w_SUM1_OUT) + signed(w_SUM2_OUT));
+  w_SUM6_OUT <= STD_LOGIC_VECTOR(signed(w_SUM3_OUT) + signed(w_SUM4_OUT));
+  
+  w_SUM7_OUT <= STD_LOGIC_VECTOR(signed(w_SUM5_OUT) + signed(w_SUM6_OUT));
+                                                      
+  o_DATA <= STD_LOGIC_VECTOR(signed(w_SUM7_OUT) + signed(w_ENTRADAS(8)));
                 
-  -- quarta coluna de somadores
-  u_ADD8 : add32 port map (
-                  a        =>  w_SUM7_OUT,
-                  b        =>  w_ENTRADAS(8),
-                  cin      =>  w_SUM7_COUT,
-                  sum1     =>  o_DATA
-                  );
+  -- 
+  -- 
+  -- -- primeira coluna de somadores
+  -- u_ADD1 : add32 port map (
+  --                 a        =>  w_ENTRADAS(0), 
+  --                 b        =>  w_ENTRADAS(1), 
+  --                 cin      =>  '0',
+  --                 sum1     =>  w_SUM1_OUT
+  --                 );
+  -- u_ADD2 : add32 port map (
+  --                 a        =>  w_ENTRADAS(2), 
+  --                 b        =>  w_ENTRADAS(3), 
+  --                 cin      =>  '0',
+  --                 sum1     =>  w_SUM2_OUT
+  --                 );                
+  -- u_ADD3 : add32 port map (
+  --                 a        =>  w_ENTRADAS(4), 
+  --                 b        =>  w_ENTRADAS(5), 
+  --                 cin      =>  '0',
+  --                 sum1     =>  w_SUM3_OUT
+  --                 );
+  -- u_ADD4 : add32 port map (
+  --                 a        =>  w_ENTRADAS(6),
+  --                 b        =>  w_ENTRADAS(7),
+  --                 cin      =>  '0',
+  --                 sum1     =>  w_SUM4_OUT
+  --                 );
+  --                 
+  -- -- segunda coluna de somadores
+  -- u_ADD5 : add32 port map (
+  --                 a        =>  w_SUM1_OUT,
+  --                 b        =>  w_SUM2_OUT,
+  --                 cin      =>  '0',
+  --                 sum1     =>  w_SUM5_OUT
+  --                 );
+  -- u_ADD6 : add32 port map (
+  --                 a        =>  w_SUM3_OUT,
+  --                 b        =>  w_SUM4_OUT,
+  --                 cin      =>  '0',
+  --                 sum1     =>  w_SUM6_OUT
+  --                 );  
+  --                 
+  -- -- terceira coluna de somadores
+  -- u_ADD7 : add32 port map (
+  --                 a        =>  w_SUM5_OUT,
+  --                 b        =>  w_SUM6_OUT,
+  --                 cin      =>  '0',
+  --                 sum1     =>  w_SUM7_OUT
+  --                 );  
+  --                 
+  --               
+  -- -- quarta coluna de somadores
+  -- u_ADD8 : add32 port map (
+  --                 a        =>  w_SUM7_OUT,
+  --                 b        =>  w_ENTRADAS(8),
+  --                 cin      =>  '0',
+  --                 sum1     =>  o_DATA
+  --                 );
 
 end arch;
