@@ -38,7 +38,8 @@ entity conv1 is
     SCALE_SHIFT  : t_ARRAY_OF_INTEGER; -- (0 to  5) := (8, 8, 7, 8, 8, 9);
     WEIGHT_FILE_NAME : string := "weights_and_biases/conv1.mif";
     BIAS_FILE_NAME    : string := "weights_and_biases/conv1_bias.mif";
-    OUT_SEL_WIDTH : integer := 3 -- largura de bits para selecionar buffers de saida    
+    OUT_SEL_WIDTH : integer := 3; -- largura de bits para selecionar buffers de saida    
+    USE_REGISTER : integer := 0
   );
   port 
   (
@@ -205,7 +206,8 @@ architecture arch of conv1 is
       DATA_WIDTH : integer := 8;
       ADDR_WIDTH : integer := 10;
       OUT_SEL_WIDTH : integer := 3; 
-      SCALE_SHIFT : t_ARRAY_OF_INTEGER
+      SCALE_SHIFT : t_ARRAY_OF_INTEGER;
+      USE_REGISTER : integer := 0
     );
     port 
     (
@@ -320,7 +322,7 @@ begin
 
 
   -- memoria rom de pesos
-  u_ROM_WEIGHTOS : conv1_weights
+  u_ROM_WEIGHTS : conv1_weights
               generic map 
               (
                 init_file_name => WEIGHT_FILE_NAME,
@@ -421,7 +423,8 @@ begin
                 WEIGHT_ADDRESS_WIDTH => WEIGHT_ADDRESS_WIDTH,
                 BIAS_ADDRESS_WIDTH => BIAS_ADDRESS_WIDTH,
                 SCALE_SHIFT        => SCALE_SHIFT,
-                OUT_SEL_WIDTH      => OUT_SEL_WIDTH
+                OUT_SEL_WIDTH      => OUT_SEL_WIDTH,
+                USE_REGISTER       => USE_REGISTER 
               )
               port map
               (

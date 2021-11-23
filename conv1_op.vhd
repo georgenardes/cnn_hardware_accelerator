@@ -38,7 +38,8 @@ entity conv1_op is
     DATA_WIDTH : integer := 8;
     ADDR_WIDTH : integer := 10;
     OUT_SEL_WIDTH : integer := 3; -- largura de bits para selecionar buffers de saida 
-    SCALE_SHIFT : t_ARRAY_OF_INTEGER
+    SCALE_SHIFT : t_ARRAY_OF_INTEGER;
+    USE_REGISTER : integer := 0
   );
   port 
   (
@@ -136,35 +137,20 @@ architecture arch of conv1_op is
     (
       NUM_BLOCKS : integer := 3;    
       DATA_WIDTH : integer := 8;    
-      ADDR_WIDTH : integer := 10
+      ADDR_WIDTH : integer := 10;
+      USE_REGISTER : integer := 0
     );
     
     port 
     (
-      i_CLK       : in  std_logic;
-      i_CLR       : in  std_logic;
-      
-      -- dado de entrada
-      i_DATA      : in  std_logic_vector (DATA_WIDTH - 1 downto 0);
-      
-      -- habilita leitura
-      i_READ_ENA  : in std_logic;
-      
-      -- habilita escrita    
+      i_CLK       : in  std_logic;      
+      i_DATA      : in  std_logic_vector (DATA_WIDTH - 1 downto 0);      
       i_WRITE_ENA : in std_logic;
-      
-      -- linha de buffer selecionada
       i_SEL_LINE  : in std_logic_vector (1 downto 0);
-      
-      -- endereco a ser lido
       i_READ_ADDR0   : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
       i_READ_ADDR1   : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
       i_READ_ADDR2   : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
-    
-      -- endereco a ser escrito
       i_WRITE_ADDR  : in std_logic_vector (ADDR_WIDTH - 1 downto 0);
-      
-      -- dados de saida     
       o_DATA_ROW_0  : out std_logic_vector (DATA_WIDTH - 1 downto 0);
       o_DATA_ROW_1  : out std_logic_vector (DATA_WIDTH - 1 downto 0);
       o_DATA_ROW_2  : out std_logic_vector (DATA_WIDTH - 1 downto 0)
@@ -447,10 +433,8 @@ begin
               )
               port map 
               (
-               i_CLK         =>  i_CLK           ,
-               i_CLR         =>  i_CLR           ,
-               i_DATA        =>  i_IN_DATA(i)    ,
-               i_READ_ENA    =>  i_IN_READ_ENA   ,
+               i_CLK         =>  i_CLK           ,               
+               i_DATA        =>  i_IN_DATA(i)    ,               
                i_WRITE_ENA   =>  i_IN_WRITE_ENA  ,
                i_SEL_LINE    =>  i_IN_SEL_LINE   ,
                i_READ_ADDR0  =>  i_IN_READ_ADDR0 ,
@@ -635,24 +619,21 @@ begin
               (
                 NUM_BLOCKS => 1,    
                 DATA_WIDTH => DATA_WIDTH,    
-                ADDR_WIDTH => ADDR_WIDTH
+                ADDR_WIDTH => ADDR_WIDTH,
+                USE_REGISTER => USE_REGISTER
               )
               port map 
               (
-                i_CLK            ,
-                i_CLR            ,
-                w_255_CLIP       , -- saida demux / entrada buffer
-                i_OUT_READ_ENA   , -- habilita leitura do bloco de saida
-                w_OUT_WRITE_ENA  , -- habilita escrita no bloco de saida
-                "00"             , -- não necessario selecionar, pois só um bloco de saida por buffer
-                i_OUT_READ_ADDR  , -- endereco de leitura
-                i_OUT_READ_ADDR  , -- não importa (apenas um bloco)
-                i_OUT_READ_ADDR  , -- não importa (apenas um bloco)
-                r_OUT_ADDR       , -- endereco de escrita
-                o_OUT_DATA(i)     -- saida 
+                i_CLK         => i_CLK            ,                
+                i_DATA        => w_255_CLIP       , -- saida demux / entrada buffer                
+                i_WRITE_ENA   => w_OUT_WRITE_ENA  , -- habilita escrita no bloco de saida
+                i_SEL_LINE    => "00"             , -- não necessario selecionar, pois só um bloco de saida por buffer
+                i_READ_ADDR0  => i_OUT_READ_ADDR  , -- endereco de leitura
+                i_READ_ADDR1  => i_OUT_READ_ADDR  , -- não importa (apenas um bloco)
+                i_READ_ADDR2  => i_OUT_READ_ADDR  , -- não importa (apenas um bloco)
+                i_WRITE_ADDR  => r_OUT_ADDR       , -- endereco de escrita
+                o_DATA_ROW_0  => o_OUT_DATA(i)     -- saida                 
               );
-  
-  
   end generate GEN_FILTER_OUT;
   
     

@@ -15,9 +15,8 @@ entity cnn_top is
     i_CLK       : in STD_LOGIC;
     i_CLR       : in STD_LOGIC;
     i_GO        : in STD_LOGIC;
-    i_ADDR      : in std_logic_vector(9 downto 0);
     i_SEL		    : in std_logic_vector(5 downto 0) := (others => '0');
-    o_DATA      : out std_logic_vector(7 downto 0);
+    o_DATA      : out std_logic_vector(7 downto 0);    
     o_READY     : out std_logic
   );
 end cnn_top;
@@ -113,6 +112,19 @@ architecture arch of cnn_top is
   constant CONV4_WEIGHT_FILE_NAME     : string := "weights_and_biases/conv4.mif";
   constant CONV4_BIAS_FILE_NAME        : string := "weights_and_biases/conv4_bias.mif";
   constant CONV4_OUT_SEL_WIDTH : integer := 7; -- log2(CONV4_M)+1
+  ---------------------------------------------------------
+  constant FC_DATA_WIDTH : integer := 8;
+  constant FC_ADDR_WIDTH : integer := 8;
+  constant FC_WEIGHT_ADDRESS_WIDTH : integer := 13; -- numero de bits para enderecar pesos
+  constant FC_BIAS_ADDRESS_WIDTH : integer := 6; -- numero de bits para enderecar registradores de bias e scales    
+  constant FC_NUM_WEIGHT_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
+  constant FC_LAST_WEIGHT : std_logic_vector := "1000110000000"; -- quantidade de pesos (27) !! QUANTIDADE PESOS POR FILTRO (R*S*C) !!
+  constant FC_LAST_BIAS : std_logic_vector := "100100";      -- 35 bias + 1 scale
+  constant FC_LAST_FEATURE : std_logic_vector := "10000000";  -- 128 pixels     
+  constant FC_NUM_CHANNELS : integer := 64;
+  constant FC_NUM_UNITS : integer := 1;
+  constant FC_SCALE_SHIFT : integer := 7;
+  --
   
   
   -- bloco rom para imagem de entrada  
@@ -189,7 +201,8 @@ architecture arch of cnn_top is
       SCALE_SHIFT  : t_ARRAY_OF_INTEGER;
       WEIGHT_FILE_NAME : STRING;
       BIAS_FILE_NAME : STRING;     
-      OUT_SEL_WIDTH : integer 
+      OUT_SEL_WIDTH : integer;
+      USE_REGISTER : integer := 0
     );
     port 
     (
@@ -231,6 +244,36 @@ architecture arch of cnn_top is
     );
   end component;
   
+    
+  component fc is
+    generic 
+    (
+      DATA_WIDTH : integer := 8;
+      ADDR_WIDTH : integer := 8;
+      WEIGHT_ADDRESS_WIDTH : integer := 13; -- numero de bits para enderecar pesos
+      BIAS_ADDRESS_WIDTH : integer := 6; -- numero de bits para enderecar registradores de bias e scales    
+      NUM_WEIGHT_FILTER_CHA : std_logic_vector := "1000"; -- quantidade de peso por filtro por canal(R*S) (de 0 a 8)
+      LAST_WEIGHT : std_logic_vector := "1000110000000"; -- quantidade de pesos (27) !! QUANTIDADE PESOS POR FILTRO (R*S*C) !!
+      LAST_BIAS : std_logic_vector := "100100";      -- 35 bias + 1 scale
+      LAST_FEATURE : std_logic_vector := "10000000";  -- 128 pixels     
+      NUM_CHANNELS : integer := 64;
+      NUM_UNITS : integer := 35;
+      SCALE_SHIFT : integer := 7
+    );
+    port (
+      i_CLK       : in STD_LOGIC;
+      i_CLR       : in STD_LOGIC;
+      i_GO        : in std_logic;
+      i_PIX       : in  std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');        
+      o_PIX       : out t_ARRAY_OF_LOGIC_VECTOR(0 to 34)(DATA_WIDTH-1 downto 0) := (others => (others => '0'));
+      o_READ_ADDR : out std_logic_vector(7 downto 0);
+      o_READY     : out std_logic
+    );
+  end component;    
+     
+    
+    
+    
     
   ---------------------------------------------------------   
   
@@ -383,502 +426,549 @@ architecture arch of cnn_top is
   signal w_CONV4_READY : std_logic;
   
   -- sianis FC
-  -- habilita leitura
+  
+  -- pixel de entrada
+  signal w_FC_PIX : std_logic_vector(7 downto 0); 
+  -- pixel de saida
+  signal w_FC_PIX_OUT : t_ARRAY_OF_LOGIC_VECTOR(0 to 34)(7 downto 0) := (others => (others => '0')); 
+  -- habilita leitura  
   signal w_FC_READ_ENA  :  std_logic := '0';
   -- endereco a ser lido
-  signal w_FC_READ_ADDR   :  std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
+  signal w_FC_READ_ADDR   :  std_logic_vector (ADDR_WIDTH-1 downto 0) := (others => '0');
+  signal w_SEL_OUT_CONV : std_logic_vector(5 downto 0) := (others => '0');
+  signal w_ADDR_OUT_CONV : std_logic_vector(9 downto 0) := (others => '0');
+  
+  -- sinal fim processamento
+  signal w_FC_READY : std_logic;
   
   
 begin
   
-  -- imagem de entrada
-  u_IMG_CHA_0 : image_chanel
-                  generic map ("input_img/input_chanel_R.mif")
-                  port map (
-                    address	=> w_IMG_READ_ADDR,
-                    clock		=> i_CLK,
-                    rden		=> w_IMG_READ_ENA,
-                    q		    => w_REBUFF1_DATA_IN(0)
-                  );
-                  
-  -- imagem de entrada
-  u_IMG_CHA_1 : image_chanel
-                  generic map ("input_img/input_chanel_G.mif")
-                  port map (
-                    address	=> w_IMG_READ_ADDR,
-                    clock		=> i_CLK,
-                    rden		=> w_IMG_READ_ENA,
-                    q		    => w_REBUFF1_DATA_IN(1)
-                  );
-  -- imagem de entrada
-  u_IMG_CHA_2 : image_chanel
-                  generic map ("input_img/input_chanel_B.mif")
-                  port map (
-                    address	=> w_IMG_READ_ADDR,
-                    clock		=> i_CLK,
-                    rden		=> w_IMG_READ_ENA,
-                    q		    => w_REBUFF1_DATA_IN(2)
-                  );
-                  
-  ------------------------------------------------------
-  u_REBUFF_1 : rebuff1 
-                  generic map 
-                  (
-                    ADDR_WIDTH    => 10,
-                    DATA_WIDTH    => 8 ,  
-                    NUM_BUFFER_LINES => "11"    , -- 3 buffers
-                    IFMAP_WIDTH   => "011000", -- 24
-                    IFMAP_HEIGHT  => "100000", -- 32
-                    OFMAP_WIDTH   => "011010", -- 26
-                    OFMAP_HEIGHT  => "100010", -- 34
-                    PAD_H         => "100001", -- 33 (indice para adicionar pad linha de baixo)
-                    PAD_W         => "011001",  -- 25 (indice para adicionar pad coluna da direita)
-                    NUM_CHANNELS  => 3,
-                    WITH_PAD      => '1'
-                  )
-                  port map 
-                  (
-                    i_CLK       => i_CLK,
-                    i_CLR       => i_CLR,
-                    i_GO        => i_GO,
-                    i_DATA      => w_REBUFF1_DATA_IN,
-                    o_READ_ENA  => w_IMG_READ_ENA,
-                    o_IN_ADDR   => w_IMG_READ_ADDR,
-                    o_OUT_ADDR  => w_REBUFF1_WRITE_ADDR,
-                    o_WRITE_ENA => w_REBUFF1_WRITE_ENA,
-                    o_DATA      => w_REBUFF1_DATA_OUT,
-                    o_SEL_BUFF_LINE  => w_REBUFF1_SEL_LINE,
-                    o_READY     => w_REBUFF1_READY
-                  );
-  ------------------------------------------------------
-  u_CONV1 : conv1 
-    generic map
-    (
-      DATA_WIDTH            => DATA_WIDTH            ,
-      ADDR_WIDTH            => ADDR_WIDTH            ,
-      H                     => CONV1_H                     ,
-      W                     => CONV1_W                     ,
-      C                     => CONV1_C                     ,
-      R                     => CONV1_R                     ,
-      S                     => CONV1_S                     ,
-      M                     => CONV1_M                     ,
-      NUM_WEIGHT_FILTER_CHA    => CONV1_NUM_WEIGHT_FILTER_CHA    ,
-      LAST_WEIGHT              => CONV1_LAST_WEIGHT              ,
-      LAST_BIAS             => CONV1_LAST_BIAS             ,
-      LAST_ROW              => CONV1_LAST_ROW              ,
-      LAST_COL              => CONV1_LAST_COL              ,
-      NC_SEL_WIDTH          => CONV1_NC_SEL_WIDTH          ,
-      NC_ADDRESS_WIDTH      => CONV1_NC_ADDRESS_WIDTH      ,
-      NC_OHE_WIDTH          => CONV1_NC_OHE_WIDTH          ,
-      BIAS_OHE_WIDTH        => CONV1_BIAS_OHE_WIDTH        ,
-      WEIGHT_ADDRESS_WIDTH  => CONV1_WEIGHT_ADDRESS_WIDTH ,
-      BIAS_ADDRESS_WIDTH    => CONV1_BIAS_ADDRESS_WIDTH    ,
-      SCALE_SHIFT           => CONV1_SCALE_SHIFT           ,
-      WEIGHT_FILE_NAME      => CONV1_WEIGHT_FILE_NAME     ,
-      BIAS_FILE_NAME        => CONV1_BIAS_FILE_NAME       ,      
-      OUT_SEL_WIDTH         => CONV1_OUT_SEL_WIDTH 
-    )
-    port map
-    (
-      i_CLK           => i_CLK  ,
-      i_CLR           => i_CLR  ,
-      i_GO            => w_REBUFF1_READY ,     
-      o_READY         => w_CONV1_READY  , 
-      i_IN_DATA       => w_REBUFF1_DATA_OUT,
-      i_IN_WRITE_ENA  => w_REBUFF1_WRITE_ENA,
-      i_IN_SEL_LINE   => w_REBUFF1_SEL_LINE,
-      i_IN_WRITE_ADDR => w_REBUFF1_WRITE_ADDR,
-      i_OUT_READ_ENA  => w_REBUFF2_READ_ENA  ,
-      i_OUT_READ_ADDR => w_REBUFF2_READ_ADDR ,
-      o_OUT_DATA      => w_CONV1_DATA_OUT
-	);
+ -- imagem de entrada
+ u_IMG_CHA_0 : image_chanel
+                 generic map ("input_img/A_input_chanel_R.mif")
+                 port map (
+                   address	=> w_IMG_READ_ADDR,
+                   clock		=> i_CLK,
+                   rden		=> w_IMG_READ_ENA,
+                   q		    => w_REBUFF1_DATA_IN(0)
+                 );
+                 
+ -- imagem de entrada
+ u_IMG_CHA_1 : image_chanel
+                 generic map ("input_img/A_input_chanel_G.mif")
+                 port map (
+                   address	=> w_IMG_READ_ADDR,
+                   clock		=> i_CLK,
+                   rden		=> w_IMG_READ_ENA,
+                   q		    => w_REBUFF1_DATA_IN(1)
+                 );
+ -- imagem de entrada
+ u_IMG_CHA_2 : image_chanel
+                 generic map ("input_img/A_input_chanel_B.mif")
+                 port map (
+                   address	=> w_IMG_READ_ADDR,
+                   clock		=> i_CLK,
+                   rden		=> w_IMG_READ_ENA,
+                   q		    => w_REBUFF1_DATA_IN(2)
+                 );
+                 
+ ------------------------------------------------------
+ u_REBUFF_1 : rebuff1 
+                 generic map 
+                 (
+                   ADDR_WIDTH    => 10,
+                   DATA_WIDTH    => 8 ,  
+                   NUM_BUFFER_LINES => "11"    , -- 3 buffers
+                   IFMAP_WIDTH   => "011000", -- 24
+                   IFMAP_HEIGHT  => "100000", -- 32
+                   OFMAP_WIDTH   => "011010", -- 26
+                   OFMAP_HEIGHT  => "100010", -- 34
+                   PAD_H         => "100001", -- 33 (indice para adicionar pad linha de baixo)
+                   PAD_W         => "011001",  -- 25 (indice para adicionar pad coluna da direita)
+                   NUM_CHANNELS  => 3,
+                   WITH_PAD      => '1'
+                 )
+                 port map 
+                 (
+                   i_CLK       => i_CLK,
+                   i_CLR       => i_CLR,
+                   i_GO        => i_GO,
+                   i_DATA      => w_REBUFF1_DATA_IN,
+                   o_READ_ENA  => w_IMG_READ_ENA,
+                   o_IN_ADDR   => w_IMG_READ_ADDR,
+                   o_OUT_ADDR  => w_REBUFF1_WRITE_ADDR,
+                   o_WRITE_ENA => w_REBUFF1_WRITE_ENA,
+                   o_DATA      => w_REBUFF1_DATA_OUT,
+                   o_SEL_BUFF_LINE  => w_REBUFF1_SEL_LINE,
+                   o_READY     => w_REBUFF1_READY
+                 );
+ ------------------------------------------------------
+ u_CONV1 : conv1 
+   generic map
+   (
+     DATA_WIDTH            => DATA_WIDTH            ,
+     ADDR_WIDTH            => ADDR_WIDTH            ,
+     H                     => CONV1_H                     ,
+     W                     => CONV1_W                     ,
+     C                     => CONV1_C                     ,
+     R                     => CONV1_R                     ,
+     S                     => CONV1_S                     ,
+     M                     => CONV1_M                     ,
+     NUM_WEIGHT_FILTER_CHA    => CONV1_NUM_WEIGHT_FILTER_CHA    ,
+     LAST_WEIGHT              => CONV1_LAST_WEIGHT              ,
+     LAST_BIAS             => CONV1_LAST_BIAS             ,
+     LAST_ROW              => CONV1_LAST_ROW              ,
+     LAST_COL              => CONV1_LAST_COL              ,
+     NC_SEL_WIDTH          => CONV1_NC_SEL_WIDTH          ,
+     NC_ADDRESS_WIDTH      => CONV1_NC_ADDRESS_WIDTH      ,
+     NC_OHE_WIDTH          => CONV1_NC_OHE_WIDTH          ,
+     BIAS_OHE_WIDTH        => CONV1_BIAS_OHE_WIDTH        ,
+     WEIGHT_ADDRESS_WIDTH  => CONV1_WEIGHT_ADDRESS_WIDTH ,
+     BIAS_ADDRESS_WIDTH    => CONV1_BIAS_ADDRESS_WIDTH    ,
+     SCALE_SHIFT           => CONV1_SCALE_SHIFT           ,
+     WEIGHT_FILE_NAME      => CONV1_WEIGHT_FILE_NAME     ,
+     BIAS_FILE_NAME        => CONV1_BIAS_FILE_NAME       ,      
+     OUT_SEL_WIDTH         => CONV1_OUT_SEL_WIDTH 
+   )
+   port map
+   (
+     i_CLK           => i_CLK  ,
+     i_CLR           => i_CLR  ,
+     i_GO            => w_REBUFF1_READY ,     
+     o_READY         => w_CONV1_READY  , 
+     i_IN_DATA       => w_REBUFF1_DATA_OUT,
+     i_IN_WRITE_ENA  => w_REBUFF1_WRITE_ENA,
+     i_IN_SEL_LINE   => w_REBUFF1_SEL_LINE,
+     i_IN_WRITE_ADDR => w_REBUFF1_WRITE_ADDR,
+     i_OUT_READ_ENA  => w_REBUFF2_READ_ENA  ,
+     i_OUT_READ_ADDR => w_REBUFF2_READ_ADDR ,
+     o_OUT_DATA      => w_CONV1_DATA_OUT
+  );
+ 
+ -----------------------------------------------------  
+         
+ u_REBUFF_2 : rebuff1 
+                 generic map 
+                 (
+                   ADDR_WIDTH    => 10,
+                   DATA_WIDTH    => 8,  
+                   NUM_BUFFER_LINES => "10"    , -- 2 buffers
+                   IFMAP_WIDTH   => "011000", -- 24
+                   IFMAP_HEIGHT  => "100000", -- 32
+                   OFMAP_WIDTH   => "011000", -- 24
+                   OFMAP_HEIGHT  => "100000", -- 32
+                   PAD_H         => "000000", -- sem pad
+                   PAD_W         => "000000", -- sem pad
+                   NUM_CHANNELS  => 6,    
+                   WITH_PAD      => '0'
+                 )
+                 port map 
+                 (
+                   i_CLK       => i_CLK,
+                   i_CLR       => i_CLR,
+                   i_GO        => w_CONV1_READY,
+                   i_DATA      => w_CONV1_DATA_OUT,
+                   o_READ_ENA  => w_REBUFF2_READ_ENA,
+                   o_IN_ADDR   => w_REBUFF2_READ_ADDR,
+                   o_OUT_ADDR  => w_REBUFF2_WRITE_ADDR,
+                   o_WRITE_ENA => w_REBUFF2_WRITE_ENA,
+                   o_DATA      => w_POOL1_DATA_IN,
+                   o_SEL_BUFF_LINE  => w_REBUFF2_SEL_LINE,
+                   o_READY     => w_REBUFF2_READY
+                 );
+ 
+ 
+ -------------------------------------------------------
+ 
+ u_POOL1 : pool1 
+                 generic map (    
+                   DATA_WIDTH   => 8,
+                   ADDR_WIDTH   => 10,
+                   NUM_CHANNELS => 6,
+                   MAX_ADDR     => "0110000000"
+                 )
+                 port map (
+                   i_CLK       => i_CLK,
+                   i_CLR       => i_CLR,
+                   i_GO        => w_REBUFF2_READY,
+                   o_READY     => w_POOL1_READY,
+                   i_IN_DATA        => w_POOL1_DATA_IN,
+                   i_IN_WRITE_ENA   => w_REBUFF2_WRITE_ENA,
+                   i_IN_WRITE_ADDR  => w_REBUFF2_WRITE_ADDR,
+                   i_IN_SEL_LINE    => w_REBUFF2_SEL_LINE,
+                   i_OUT_READ_ADDR0 => w_REBUFF3_READ_ADDR,
+                   o_BUFFER_OUT     => w_POOL1_DATA_OUT
+                 );
+ 
+ -------------------------------------------------------
+ 
+ u_REBUFF_3 : rebuff1 
+                 generic map (
+                   ADDR_WIDTH       => 10,
+                   DATA_WIDTH       => 8,
+                   NUM_BUFFER_LINES => "11",
+                   IFMAP_WIDTH      => "001100",
+                   IFMAP_HEIGHT     => "010000",
+                   OFMAP_WIDTH      => "001110",
+                   OFMAP_HEIGHT     => "010010",
+                   PAD_W            => "001101",
+                   PAD_H            => "010001",
+                   NUM_CHANNELS     => 6,
+                   WITH_PAD         => '1'
+                 )
+                 port map (
+                   i_CLK           => i_CLK,
+                   i_CLR           => i_CLR,
+                   i_GO            => w_POOL1_READY,
+                   i_DATA          => w_POOL1_DATA_OUT,                    
+                   o_IN_ADDR       => w_REBUFF3_READ_ADDR,
+                   o_OUT_ADDR      => w_REBUFF3_WRITE_ADDR,
+                   o_WRITE_ENA     => w_REBUFF3_WRITE_ENA,
+                   o_DATA          => w_CONV2_DATA_IN,
+                   o_SEL_BUFF_LINE => w_REBUFF3_SEL_LINE,
+                   o_READY         => w_REBUFF3_READY
+                 );
   
-  -----------------------------------------------------  
-          
-  u_REBUFF_2 : rebuff1 
-                  generic map 
-                  (
-                    ADDR_WIDTH    => 10,
-                    DATA_WIDTH    => 8,  
-                    NUM_BUFFER_LINES => "10"    , -- 2 buffers
-                    IFMAP_WIDTH   => "011000", -- 24
-                    IFMAP_HEIGHT  => "100000", -- 32
-                    OFMAP_WIDTH   => "011000", -- 24
-                    OFMAP_HEIGHT  => "100000", -- 32
-                    PAD_H         => "000000", -- sem pad
-                    PAD_W         => "000000", -- sem pad
-                    NUM_CHANNELS  => 6,    
-                    WITH_PAD      => '0'
-                  )
-                  port map 
-                  (
-                    i_CLK       => i_CLK,
-                    i_CLR       => i_CLR,
-                    i_GO        => w_CONV1_READY,
-                    i_DATA      => w_CONV1_DATA_OUT,
-                    o_READ_ENA  => w_REBUFF2_READ_ENA,
-                    o_IN_ADDR   => w_REBUFF2_READ_ADDR,
-                    o_OUT_ADDR  => w_REBUFF2_WRITE_ADDR,
-                    o_WRITE_ENA => w_REBUFF2_WRITE_ENA,
-                    o_DATA      => w_POOL1_DATA_IN,
-                    o_SEL_BUFF_LINE  => w_REBUFF2_SEL_LINE,
-                    o_READY     => w_REBUFF2_READY
-                  );
+ -------------------------------------------------------
+ 
+ 
+ u_CONV2 : conv1 
+               generic map
+               (
+                 DATA_WIDTH            => DATA_WIDTH            ,
+                 ADDR_WIDTH            => ADDR_WIDTH            ,
+                 H                     => CONV2_H                     ,
+                 W                     => CONV2_W                     ,
+                 C                     => CONV2_C                     ,
+                 R                     => CONV2_R                     ,
+                 S                     => CONV2_S                     ,
+                 M                     => CONV2_M                     ,
+                 NUM_WEIGHT_FILTER_CHA    => CONV2_NUM_WEIGHT_FILTER_CHA    ,
+                 LAST_WEIGHT              => CONV2_LAST_WEIGHT              ,
+                 LAST_BIAS             => CONV2_LAST_BIAS             ,
+                 LAST_ROW              => CONV2_LAST_ROW              ,
+                 LAST_COL              => CONV2_LAST_COL              ,
+                 NC_SEL_WIDTH          => CONV2_NC_SEL_WIDTH          ,
+                 NC_ADDRESS_WIDTH      => CONV2_NC_ADDRESS_WIDTH      ,
+                 NC_OHE_WIDTH          => CONV2_NC_OHE_WIDTH          ,
+                 BIAS_OHE_WIDTH        => CONV2_BIAS_OHE_WIDTH        ,
+                 WEIGHT_ADDRESS_WIDTH => CONV2_WEIGHT_ADDRESS_WIDTH ,
+                 BIAS_ADDRESS_WIDTH    => CONV2_BIAS_ADDRESS_WIDTH    ,
+                 SCALE_SHIFT           => CONV2_SCALE_SHIFT           ,
+                 WEIGHT_FILE_NAME     => CONV2_WEIGHT_FILE_NAME       ,
+                 BIAS_FILE_NAME        => CONV2_BIAS_FILE_NAME        ,
+                 OUT_SEL_WIDTH         => CONV2_OUT_SEL_WIDTH 
+               )
+               port map
+               (
+                 i_CLK           => i_CLK,
+                 i_CLR           => i_CLR,
+                 i_GO            => w_REBUFF3_READY,
+                 o_READY         => w_CONV2_READY,
+                 i_IN_DATA       => w_CONV2_DATA_IN,
+                 i_IN_WRITE_ENA  => w_REBUFF3_WRITE_ENA,
+                 i_IN_SEL_LINE   => w_REBUFF3_SEL_LINE,
+                 i_IN_WRITE_ADDR => w_REBUFF3_WRITE_ADDR,
+                 i_OUT_READ_ENA  => w_REBUFF4_READ_ENA,
+                 i_OUT_READ_ADDR => w_REBUFF4_READ_ADDR,
+                 o_OUT_DATA      => w_CONV2_DATA_OUT
+               );
+ 
+ -----------------------------------------------------
+ 
   
-
-  -------------------------------------------------------
-  
-  u_POOL1 : pool1 
-                  generic map (    
-                    DATA_WIDTH   => 8,
-                    ADDR_WIDTH   => 10,
-                    NUM_CHANNELS => 6,
-                    MAX_ADDR     => "0110000000"
-                  )
-                  port map (
-                    i_CLK       => i_CLK,
-                    i_CLR       => i_CLR,
-                    i_GO        => w_REBUFF2_READY,
-                    o_READY     => w_POOL1_READY,
-                    i_IN_DATA        => w_POOL1_DATA_IN,
-                    i_IN_WRITE_ENA   => w_REBUFF2_WRITE_ENA,
-                    i_IN_WRITE_ADDR  => w_REBUFF2_WRITE_ADDR,
-                    i_IN_SEL_LINE    => w_REBUFF2_SEL_LINE,
-                    i_OUT_READ_ADDR0 => w_REBUFF3_READ_ADDR,
-                    o_BUFFER_OUT     => w_POOL1_DATA_OUT
-                  );
-  
-  -------------------------------------------------------
-  
-  u_REBUFF_3 : rebuff1 
-                  generic map (
-                    ADDR_WIDTH       => 10,
-                    DATA_WIDTH       => 8,
-                    NUM_BUFFER_LINES => "11",
-                    IFMAP_WIDTH      => "001100",
-                    IFMAP_HEIGHT     => "010000",
-                    OFMAP_WIDTH      => "001110",
-                    OFMAP_HEIGHT     => "010010",
-                    PAD_W            => "001101",
-                    PAD_H            => "010001",
-                    NUM_CHANNELS     => 6,
-                    WITH_PAD         => '1'
-                  )
-                  port map (
-                    i_CLK           => i_CLK,
-                    i_CLR           => i_CLR,
-                    i_GO            => w_POOL1_READY,
-                    i_DATA          => w_POOL1_DATA_OUT,                    
-                    o_IN_ADDR       => w_REBUFF3_READ_ADDR,
-                    o_OUT_ADDR      => w_REBUFF3_WRITE_ADDR,
-                    o_WRITE_ENA     => w_REBUFF3_WRITE_ENA,
-                    o_DATA          => w_CONV2_DATA_IN,
-                    o_SEL_BUFF_LINE => w_REBUFF3_SEL_LINE,
-                    o_READY         => w_REBUFF3_READY
-                  );
-   
-  -------------------------------------------------------
-  
-  
-  u_CONV2 : conv1 
-                generic map
-                (
-                  DATA_WIDTH            => DATA_WIDTH            ,
-                  ADDR_WIDTH            => ADDR_WIDTH            ,
-                  H                     => CONV2_H                     ,
-                  W                     => CONV2_W                     ,
-                  C                     => CONV2_C                     ,
-                  R                     => CONV2_R                     ,
-                  S                     => CONV2_S                     ,
-                  M                     => CONV2_M                     ,
-                  NUM_WEIGHT_FILTER_CHA    => CONV2_NUM_WEIGHT_FILTER_CHA    ,
-                  LAST_WEIGHT              => CONV2_LAST_WEIGHT              ,
-                  LAST_BIAS             => CONV2_LAST_BIAS             ,
-                  LAST_ROW              => CONV2_LAST_ROW              ,
-                  LAST_COL              => CONV2_LAST_COL              ,
-                  NC_SEL_WIDTH          => CONV2_NC_SEL_WIDTH          ,
-                  NC_ADDRESS_WIDTH      => CONV2_NC_ADDRESS_WIDTH      ,
-                  NC_OHE_WIDTH          => CONV2_NC_OHE_WIDTH          ,
-                  BIAS_OHE_WIDTH        => CONV2_BIAS_OHE_WIDTH        ,
-                  WEIGHT_ADDRESS_WIDTH => CONV2_WEIGHT_ADDRESS_WIDTH ,
-                  BIAS_ADDRESS_WIDTH    => CONV2_BIAS_ADDRESS_WIDTH    ,
-                  SCALE_SHIFT           => CONV2_SCALE_SHIFT           ,
-                  WEIGHT_FILE_NAME     => CONV2_WEIGHT_FILE_NAME       ,
-                  BIAS_FILE_NAME        => CONV2_BIAS_FILE_NAME        ,
-                  OUT_SEL_WIDTH         => CONV2_OUT_SEL_WIDTH 
+ u_REBUFF_4 : rebuff1 
+                generic map (
+                  ADDR_WIDTH       => 10,
+                  DATA_WIDTH       => 8,
+                  NUM_BUFFER_LINES => "10",
+                  IFMAP_WIDTH      => "001100",
+                  IFMAP_HEIGHT     => "010000",
+                  OFMAP_WIDTH      => "001100",
+                  OFMAP_HEIGHT     => "010000",
+                  PAD_W            => "000000",
+                  PAD_H            => "000000",
+                  NUM_CHANNELS     => 16,
+                  WITH_PAD         => '0'
                 )
-                port map
-                (
+                port map (
                   i_CLK           => i_CLK,
                   i_CLR           => i_CLR,
-                  i_GO            => w_REBUFF3_READY,
-                  o_READY         => w_CONV2_READY,
-                  i_IN_DATA       => w_CONV2_DATA_IN,
-                  i_IN_WRITE_ENA  => w_REBUFF3_WRITE_ENA,
-                  i_IN_SEL_LINE   => w_REBUFF3_SEL_LINE,
-                  i_IN_WRITE_ADDR => w_REBUFF3_WRITE_ADDR,
-                  i_OUT_READ_ENA  => w_REBUFF4_READ_ENA,
-                  i_OUT_READ_ADDR => w_REBUFF4_READ_ADDR,
-                  o_OUT_DATA      => w_CONV2_DATA_OUT
+                  i_GO            => w_CONV2_READY,
+                  i_DATA          => w_CONV2_DATA_OUT,
+                  o_READ_ENA      => w_REBUFF4_READ_ENA,
+                  o_IN_ADDR       => w_REBUFF4_READ_ADDR,
+                  o_OUT_ADDR      => w_REBUFF4_WRITE_ADDR,
+                  o_WRITE_ENA     => w_REBUFF4_WRITE_ENA,
+                  o_DATA          => w_POOL2_DATA_IN,
+                  o_SEL_BUFF_LINE => w_REBUFF4_SEL_LINE,
+                  o_READY         => w_REBUFF4_READY
                 );
+ 
+ ------------------------------------------------------
+ 
+ u_POOL2 : pool1 
+                 generic map (    
+                   DATA_WIDTH   => 8,
+                   ADDR_WIDTH   => 10,
+                   NUM_CHANNELS => 16,
+                   MAX_ADDR     => "0011000000"
+                 )
+                 port map (
+                   i_CLK       => i_CLK,
+                   i_CLR       => i_CLR,
+                   i_GO        => w_REBUFF4_READY,
+                   o_READY     => w_POOL2_READY,
+                   i_IN_DATA        => w_POOL2_DATA_IN,
+                   i_IN_WRITE_ENA   => w_REBUFF4_WRITE_ENA,
+                   i_IN_WRITE_ADDR  => w_REBUFF4_WRITE_ADDR,
+                   i_IN_SEL_LINE    => w_REBUFF4_SEL_LINE,
+                   i_OUT_READ_ADDR0 => w_REBUFF5_READ_ADDR,
+                   o_BUFFER_OUT     => w_POOL2_DATA_OUT
+                 );
   
-  -----------------------------------------------------
+ -------------------------------------------------------
  
    
-  u_REBUFF_4 : rebuff1 
+ u_REBUFF_5 : rebuff1 
+                 generic map (
+                   ADDR_WIDTH       => 10,
+                   DATA_WIDTH       => 8,
+                   NUM_BUFFER_LINES => "11",
+                   IFMAP_WIDTH      => "000110",
+                   IFMAP_HEIGHT     => "001000",
+                   OFMAP_WIDTH      => "001000",
+                   OFMAP_HEIGHT     => "001010",
+                   PAD_W            => "000111",
+                   PAD_H            => "001001",
+                   NUM_CHANNELS     => 16,
+                   WITH_PAD         => '1'
+                 )
+                 port map (
+                   i_CLK           => i_CLK,
+                   i_CLR           => i_CLR,
+                   i_GO            => w_POOL2_READY,
+                   i_DATA          => w_POOL2_DATA_OUT,                    
+                   o_IN_ADDR       => w_REBUFF5_READ_ADDR,
+                   o_OUT_ADDR      => w_REBUFF5_WRITE_ADDR,
+                   o_WRITE_ENA     => w_REBUFF5_WRITE_ENA,
+                   o_DATA          => w_CONV3_DATA_IN,
+                   o_SEL_BUFF_LINE => w_REBUFF5_SEL_LINE,
+                   o_READY         => w_REBUFF5_READY
+                 );
+  
+ -------------------------------------------------------
+ 
+ u_CONV3 : conv1 
+               generic map
+               (
+                 DATA_WIDTH            => DATA_WIDTH            ,
+                 ADDR_WIDTH            => ADDR_WIDTH            ,
+                 H                     => CONV3_H                     ,
+                 W                     => CONV3_W                     ,
+                 C                     => CONV3_C                     ,
+                 R                     => CONV3_R                     ,
+                 S                     => CONV3_S                     ,
+                 M                     => CONV3_M                     ,
+                 NUM_WEIGHT_FILTER_CHA    => CONV3_NUM_WEIGHT_FILTER_CHA    ,
+                 LAST_WEIGHT              => CONV3_LAST_WEIGHT              ,
+                 LAST_BIAS             => CONV3_LAST_BIAS             ,
+                 LAST_ROW              => CONV3_LAST_ROW              ,
+                 LAST_COL              => CONV3_LAST_COL              ,
+                 NC_SEL_WIDTH          => CONV3_NC_SEL_WIDTH          ,
+                 NC_ADDRESS_WIDTH      => CONV3_NC_ADDRESS_WIDTH      ,
+                 NC_OHE_WIDTH          => CONV3_NC_OHE_WIDTH          ,
+                 BIAS_OHE_WIDTH        => CONV3_BIAS_OHE_WIDTH        ,
+                 WEIGHT_ADDRESS_WIDTH  => CONV3_WEIGHT_ADDRESS_WIDTH  ,
+                 BIAS_ADDRESS_WIDTH    => CONV3_BIAS_ADDRESS_WIDTH    ,
+                 SCALE_SHIFT           => CONV3_SCALE_SHIFT           ,
+                 WEIGHT_FILE_NAME      => CONV3_WEIGHT_FILE_NAME      ,
+                 BIAS_FILE_NAME        => CONV3_BIAS_FILE_NAME        ,
+                 OUT_SEL_WIDTH         => CONV3_OUT_SEL_WIDTH 
+               )
+               port map
+               (
+                 i_CLK           => i_CLK,
+                 i_CLR           => i_CLR,
+                 i_GO            => w_REBUFF5_READY,
+                 o_READY         => w_CONV3_READY,
+                 i_IN_DATA       => w_CONV3_DATA_IN,
+                 i_IN_WRITE_ENA  => w_REBUFF5_WRITE_ENA,
+                 i_IN_SEL_LINE   => w_REBUFF5_SEL_LINE,
+                 i_IN_WRITE_ADDR => w_REBUFF5_WRITE_ADDR,
+                 i_OUT_READ_ENA  => w_REBUFF6_READ_ENA,
+                 i_OUT_READ_ADDR => w_REBUFF6_READ_ADDR,
+                 o_OUT_DATA      => w_CONV3_DATA_OUT
+               );
+ -------------------------------------------------------
+ 
+   
+ u_REBUFF_6 : rebuff1 
                  generic map (
                    ADDR_WIDTH       => 10,
                    DATA_WIDTH       => 8,
                    NUM_BUFFER_LINES => "10",
-                   IFMAP_WIDTH      => "001100",
-                   IFMAP_HEIGHT     => "010000",
-                   OFMAP_WIDTH      => "001100",
-                   OFMAP_HEIGHT     => "010000",
+                   IFMAP_WIDTH      => "000110",
+                   IFMAP_HEIGHT     => "001000",
+                   OFMAP_WIDTH      => "000110",
+                   OFMAP_HEIGHT     => "001000",
                    PAD_W            => "000000",
                    PAD_H            => "000000",
-                   NUM_CHANNELS     => 16,
+                   NUM_CHANNELS     => 32,
                    WITH_PAD         => '0'
                  )
                  port map (
                    i_CLK           => i_CLK,
                    i_CLR           => i_CLR,
-                   i_GO            => w_CONV2_READY,
-                   i_DATA          => w_CONV2_DATA_OUT,
-                   o_READ_ENA      => w_REBUFF4_READ_ENA,
-                   o_IN_ADDR       => w_REBUFF4_READ_ADDR,
-                   o_OUT_ADDR      => w_REBUFF4_WRITE_ADDR,
-                   o_WRITE_ENA     => w_REBUFF4_WRITE_ENA,
-                   o_DATA          => w_POOL2_DATA_IN,
-                   o_SEL_BUFF_LINE => w_REBUFF4_SEL_LINE,
-                   o_READY         => w_REBUFF4_READY
+                   i_GO            => w_CONV3_READY,
+                   i_DATA          => w_CONV3_DATA_OUT,
+                   o_READ_ENA      => w_REBUFF6_READ_ENA,
+                   o_IN_ADDR       => w_REBUFF6_READ_ADDR,
+                   o_OUT_ADDR      => w_REBUFF6_WRITE_ADDR,
+                   o_WRITE_ENA     => w_REBUFF6_WRITE_ENA,
+                   o_DATA          => w_POOL3_DATA_IN,
+                   o_SEL_BUFF_LINE => w_REBUFF6_SEL_LINE,
+                   o_READY         => w_REBUFF6_READY
                  );
   
  -------------------------------------------------------
+ 
+ u_POOL3 : pool1 
+                 generic map (    
+                   DATA_WIDTH   => 8,
+                   ADDR_WIDTH   => 10,
+                   NUM_CHANNELS => 32,
+                   MAX_ADDR     => "0000110000"
+                 )
+                 port map (
+                   i_CLK            => i_CLK,
+                   i_CLR            => i_CLR,
+                   i_GO             => w_REBUFF6_READY,
+                   o_READY          => w_POOL3_READY,
+                   i_IN_DATA        => w_POOL3_DATA_IN,
+                   i_IN_WRITE_ENA   => w_REBUFF6_WRITE_ENA,
+                   i_IN_WRITE_ADDR  => w_REBUFF6_WRITE_ADDR,
+                   i_IN_SEL_LINE    => w_REBUFF6_SEL_LINE,
+                   i_OUT_READ_ADDR0 => w_REBUFF7_READ_ADDR,
+                   o_BUFFER_OUT     => w_POOL3_DATA_OUT
+                 );
   
-  u_POOL2 : pool1 
-                  generic map (    
-                    DATA_WIDTH   => 8,
-                    ADDR_WIDTH   => 10,
-                    NUM_CHANNELS => 16,
-                    MAX_ADDR     => "0011000000"
-                  )
-                  port map (
-                    i_CLK       => i_CLK,
-                    i_CLR       => i_CLR,
-                    i_GO        => w_REBUFF4_READY,
-                    o_READY     => w_POOL2_READY,
-                    i_IN_DATA        => w_POOL2_DATA_IN,
-                    i_IN_WRITE_ENA   => w_REBUFF4_WRITE_ENA,
-                    i_IN_WRITE_ADDR  => w_REBUFF4_WRITE_ADDR,
-                    i_IN_SEL_LINE    => w_REBUFF4_SEL_LINE,
-                    i_OUT_READ_ADDR0 => w_REBUFF5_READ_ADDR,
-                    o_BUFFER_OUT     => w_POOL2_DATA_OUT
-                  );
+ -------------------------------------------------------
    
-  -------------------------------------------------------
-  
-    
-  u_REBUFF_5 : rebuff1 
-                  generic map (
-                    ADDR_WIDTH       => 10,
-                    DATA_WIDTH       => 8,
-                    NUM_BUFFER_LINES => "11",
-                    IFMAP_WIDTH      => "000110",
-                    IFMAP_HEIGHT     => "001000",
-                    OFMAP_WIDTH      => "001000",
-                    OFMAP_HEIGHT     => "001010",
-                    PAD_W            => "000111",
-                    PAD_H            => "001001",
-                    NUM_CHANNELS     => 16,
-                    WITH_PAD         => '1'
-                  )
-                  port map (
-                    i_CLK           => i_CLK,
-                    i_CLR           => i_CLR,
-                    i_GO            => w_POOL2_READY,
-                    i_DATA          => w_POOL2_DATA_OUT,                    
-                    o_IN_ADDR       => w_REBUFF5_READ_ADDR,
-                    o_OUT_ADDR      => w_REBUFF5_WRITE_ADDR,
-                    o_WRITE_ENA     => w_REBUFF5_WRITE_ENA,
-                    o_DATA          => w_CONV3_DATA_IN,
-                    o_SEL_BUFF_LINE => w_REBUFF5_SEL_LINE,
-                    o_READY         => w_REBUFF5_READY
-                  );
    
-  -------------------------------------------------------
+ u_REBUFF7 : rebuff1 
+                 generic map (
+                   ADDR_WIDTH       => 10,
+                   DATA_WIDTH       => 8,
+                   NUM_BUFFER_LINES => "11",
+                   IFMAP_WIDTH      => "000011",
+                   IFMAP_HEIGHT     => "000100",
+                   OFMAP_WIDTH      => "000011",
+                   OFMAP_HEIGHT     => "000100",
+                   PAD_W            => "000000",
+                   PAD_H            => "000000",
+                   NUM_CHANNELS     => 32,
+                   WITH_PAD         => '0'
+                 )
+                 port map (
+                   i_CLK           => i_CLK,
+                   i_CLR           => i_CLR,
+                   i_GO            => w_POOL3_READY,
+                   --i_GO            => i_GO,
+                   i_DATA          => w_POOL3_DATA_OUT,
+                   o_IN_ADDR       => w_REBUFF7_READ_ADDR,
+                   o_OUT_ADDR      => w_REBUFF7_WRITE_ADDR,
+                   o_WRITE_ENA     => w_REBUFF7_WRITE_ENA,
+                   o_DATA          => w_CONV4_DATA_IN,
+                   o_SEL_BUFF_LINE => w_REBUFF7_SEL_LINE,
+                   o_READY         => w_REBUFF7_READY
+                 );
   
-  u_CONV3 : conv1 
-                generic map
-                (
-                  DATA_WIDTH            => DATA_WIDTH            ,
-                  ADDR_WIDTH            => ADDR_WIDTH            ,
-                  H                     => CONV3_H                     ,
-                  W                     => CONV3_W                     ,
-                  C                     => CONV3_C                     ,
-                  R                     => CONV3_R                     ,
-                  S                     => CONV3_S                     ,
-                  M                     => CONV3_M                     ,
-                  NUM_WEIGHT_FILTER_CHA    => CONV3_NUM_WEIGHT_FILTER_CHA    ,
-                  LAST_WEIGHT              => CONV3_LAST_WEIGHT              ,
-                  LAST_BIAS             => CONV3_LAST_BIAS             ,
-                  LAST_ROW              => CONV3_LAST_ROW              ,
-                  LAST_COL              => CONV3_LAST_COL              ,
-                  NC_SEL_WIDTH          => CONV3_NC_SEL_WIDTH          ,
-                  NC_ADDRESS_WIDTH      => CONV3_NC_ADDRESS_WIDTH      ,
-                  NC_OHE_WIDTH          => CONV3_NC_OHE_WIDTH          ,
-                  BIAS_OHE_WIDTH        => CONV3_BIAS_OHE_WIDTH        ,
-                  WEIGHT_ADDRESS_WIDTH  => CONV3_WEIGHT_ADDRESS_WIDTH  ,
-                  BIAS_ADDRESS_WIDTH    => CONV3_BIAS_ADDRESS_WIDTH    ,
-                  SCALE_SHIFT           => CONV3_SCALE_SHIFT           ,
-                  WEIGHT_FILE_NAME      => CONV3_WEIGHT_FILE_NAME      ,
-                  BIAS_FILE_NAME        => CONV3_BIAS_FILE_NAME        ,
-                  OUT_SEL_WIDTH         => CONV3_OUT_SEL_WIDTH 
-                )
-                port map
-                (
-                  i_CLK           => i_CLK,
-                  i_CLR           => i_CLR,
-                  i_GO            => w_REBUFF5_READY,
-                  o_READY         => w_CONV3_READY,
-                  i_IN_DATA       => w_CONV3_DATA_IN,
-                  i_IN_WRITE_ENA  => w_REBUFF5_WRITE_ENA,
-                  i_IN_SEL_LINE   => w_REBUFF5_SEL_LINE,
-                  i_IN_WRITE_ADDR => w_REBUFF5_WRITE_ADDR,
-                  i_OUT_READ_ENA  => w_REBUFF6_READ_ENA,
-                  i_OUT_READ_ADDR => w_REBUFF6_READ_ADDR,
-                  o_OUT_DATA      => w_CONV3_DATA_OUT
-                );
-  -------------------------------------------------------
-  
-    
-  u_REBUFF_6 : rebuff1 
-                  generic map (
-                    ADDR_WIDTH       => 10,
-                    DATA_WIDTH       => 8,
-                    NUM_BUFFER_LINES => "10",
-                    IFMAP_WIDTH      => "000110",
-                    IFMAP_HEIGHT     => "001000",
-                    OFMAP_WIDTH      => "000110",
-                    OFMAP_HEIGHT     => "001000",
-                    PAD_W            => "000000",
-                    PAD_H            => "000000",
-                    NUM_CHANNELS     => 32,
-                    WITH_PAD         => '0'
-                  )
-                  port map (
-                    i_CLK           => i_CLK,
-                    i_CLR           => i_CLR,
-                    i_GO            => w_CONV3_READY,
-                    i_DATA          => w_CONV3_DATA_OUT,
-                    o_READ_ENA      => w_REBUFF6_READ_ENA,
-                    o_IN_ADDR       => w_REBUFF6_READ_ADDR,
-                    o_OUT_ADDR      => w_REBUFF6_WRITE_ADDR,
-                    o_WRITE_ENA     => w_REBUFF6_WRITE_ENA,
-                    o_DATA          => w_POOL3_DATA_IN,
-                    o_SEL_BUFF_LINE => w_REBUFF6_SEL_LINE,
-                    o_READY         => w_REBUFF6_READY
-                  );
-   
-  -------------------------------------------------------
-  
-  u_POOL3 : pool1 
-                  generic map (    
-                    DATA_WIDTH   => 8,
-                    ADDR_WIDTH   => 10,
-                    NUM_CHANNELS => 32,
-                    MAX_ADDR     => "0000110000"
-                  )
-                  port map (
-                    i_CLK       => i_CLK,
-                    i_CLR       => i_CLR,
-                    i_GO        => w_REBUFF6_READY,
-                    o_READY     => w_POOL3_READY,
-                    i_IN_DATA        => w_POOL3_DATA_IN,
-                    i_IN_WRITE_ENA   => w_REBUFF6_WRITE_ENA,
-                    i_IN_WRITE_ADDR  => w_REBUFF6_WRITE_ADDR,
-                    i_IN_SEL_LINE    => w_REBUFF6_SEL_LINE,
-                    i_OUT_READ_ADDR0 => w_REBUFF7_READ_ADDR,
-                    o_BUFFER_OUT     => w_POOL3_DATA_OUT
-                  );
-   
-  -------------------------------------------------------
-    
-    
-  u_REBUFF7 : rebuff1 
-                  generic map (
-                    ADDR_WIDTH       => 10,
-                    DATA_WIDTH       => 8,
-                    NUM_BUFFER_LINES => "11",
-                    IFMAP_WIDTH      => "000011",
-                    IFMAP_HEIGHT     => "000100",
-                    OFMAP_WIDTH      => "000011",
-                    OFMAP_HEIGHT     => "000100",
-                    PAD_W            => "000000",
-                    PAD_H            => "000000",
-                    NUM_CHANNELS     => 32,
-                    WITH_PAD         => '0'
-                  )
-                  port map (
-                    i_CLK           => i_CLK,
-                    i_CLR           => i_CLR,
-                    i_GO            => w_POOL3_READY,
-                    i_DATA          => w_POOL3_DATA_OUT,
-                    o_IN_ADDR       => w_REBUFF7_READ_ADDR,
-                    o_OUT_ADDR      => w_REBUFF7_WRITE_ADDR,
-                    o_WRITE_ENA     => w_REBUFF7_WRITE_ENA,
-                    o_DATA          => w_CONV4_DATA_IN,
-                    o_SEL_BUFF_LINE => w_REBUFF7_SEL_LINE,
-                    o_READY         => w_REBUFF7_READY
-                  );
-   
-  -------------------------------------------------------
-  
-  u_CONV4 : conv1 
-                generic map
-                (
-                  DATA_WIDTH            => DATA_WIDTH            ,
-                  ADDR_WIDTH            => ADDR_WIDTH            ,
-                  H                     => CONV4_H                     ,
-                  W                     => CONV4_W                     ,
-                  C                     => CONV4_C                     ,
-                  R                     => CONV4_R                     ,
-                  S                     => CONV4_S                     ,
-                  M                     => CONV4_M                     ,
-                  NUM_WEIGHT_FILTER_CHA => CONV4_NUM_WEIGHT_FILTER_CHA ,
-                  LAST_WEIGHT           => CONV4_LAST_WEIGHT           ,
-                  LAST_BIAS             => CONV4_LAST_BIAS             ,
-                  LAST_ROW              => CONV4_LAST_ROW              ,
-                  LAST_COL              => CONV4_LAST_COL              ,
-                  NC_SEL_WIDTH          => CONV4_NC_SEL_WIDTH          ,
-                  NC_ADDRESS_WIDTH      => CONV4_NC_ADDRESS_WIDTH      ,
-                  NC_OHE_WIDTH          => CONV4_NC_OHE_WIDTH          ,
-                  BIAS_OHE_WIDTH        => CONV4_BIAS_OHE_WIDTH        ,
-                  WEIGHT_ADDRESS_WIDTH  => CONV4_WEIGHT_ADDRESS_WIDTH  ,
-                  BIAS_ADDRESS_WIDTH    => CONV4_BIAS_ADDRESS_WIDTH    ,
-                  SCALE_SHIFT           => CONV4_SCALE_SHIFT           ,
-                  WEIGHT_FILE_NAME      => CONV4_WEIGHT_FILE_NAME      ,
-                  BIAS_FILE_NAME        => CONV4_BIAS_FILE_NAME        ,
-                  OUT_SEL_WIDTH         => CONV4_OUT_SEL_WIDTH  
-                )
-                port map
-                (
-                  i_CLK           => i_CLK,
-                  i_CLR           => i_CLR,
-                  i_GO            => w_REBUFF7_READY,
-                  o_READY         => w_CONV4_READY,
-                  i_IN_DATA       => w_CONV4_DATA_IN,
-                  i_IN_WRITE_ENA  => w_REBUFF7_WRITE_ENA,
-                  i_IN_SEL_LINE   => w_REBUFF7_SEL_LINE,
-                  i_IN_WRITE_ADDR => w_REBUFF7_WRITE_ADDR,
-                  i_OUT_READ_ENA  => '0',
-                  i_OUT_READ_ADDR => i_ADDR,
-                  o_OUT_DATA      => w_CONV4_DATA_OUT
-                );
-  -------------------------------------------------------
+ -------------------------------------------------------
+
+ u_CONV4 : conv1 
+              generic map
+              (
+                DATA_WIDTH            => DATA_WIDTH            ,
+                ADDR_WIDTH            => ADDR_WIDTH            ,
+                H                     => CONV4_H                     ,
+                W                     => CONV4_W                     ,
+                C                     => CONV4_C                     ,
+                R                     => CONV4_R                     ,
+                S                     => CONV4_S                     ,
+                M                     => CONV4_M                     ,
+                NUM_WEIGHT_FILTER_CHA => CONV4_NUM_WEIGHT_FILTER_CHA ,
+                LAST_WEIGHT           => CONV4_LAST_WEIGHT           ,
+                LAST_BIAS             => CONV4_LAST_BIAS             ,
+                LAST_ROW              => CONV4_LAST_ROW              ,
+                LAST_COL              => CONV4_LAST_COL              ,
+                NC_SEL_WIDTH          => CONV4_NC_SEL_WIDTH          ,
+                NC_ADDRESS_WIDTH      => CONV4_NC_ADDRESS_WIDTH      ,
+                NC_OHE_WIDTH          => CONV4_NC_OHE_WIDTH          ,
+                BIAS_OHE_WIDTH        => CONV4_BIAS_OHE_WIDTH        ,
+                WEIGHT_ADDRESS_WIDTH  => CONV4_WEIGHT_ADDRESS_WIDTH  ,
+                BIAS_ADDRESS_WIDTH    => CONV4_BIAS_ADDRESS_WIDTH    ,
+                SCALE_SHIFT           => CONV4_SCALE_SHIFT           ,
+                WEIGHT_FILE_NAME      => CONV4_WEIGHT_FILE_NAME      ,
+                BIAS_FILE_NAME        => CONV4_BIAS_FILE_NAME        ,
+                OUT_SEL_WIDTH         => CONV4_OUT_SEL_WIDTH         ,
+                USE_REGISTER          => 1
+              )
+              port map
+              (
+                i_CLK           => i_CLK,
+                i_CLR           => i_CLR,
+                i_GO            => w_REBUFF7_READY,
+                o_READY         => w_CONV4_READY,
+                i_IN_DATA       => w_CONV4_DATA_IN,
+                i_IN_WRITE_ENA  => w_REBUFF7_WRITE_ENA,
+                i_IN_SEL_LINE   => w_REBUFF7_SEL_LINE,
+                i_IN_WRITE_ADDR => w_REBUFF7_WRITE_ADDR,
+                i_OUT_READ_ENA  => '0',
+                i_OUT_READ_ADDR => w_ADDR_OUT_CONV,
+                o_OUT_DATA      => w_CONV4_DATA_OUT
+              );
+              
+ ------------------------------------------------------
   
   
-  o_DATA <= w_CONV4_DATA_OUT(to_integer(unsigned(i_SEL)));
-  o_READY <= w_CONV4_READY;
+  
+  u_FC : fc 
+          generic map
+          (
+            DATA_WIDTH            => FC_DATA_WIDTH           ,
+            ADDR_WIDTH            => FC_ADDR_WIDTH           ,
+            WEIGHT_ADDRESS_WIDTH  => FC_WEIGHT_ADDRESS_WIDTH ,
+            BIAS_ADDRESS_WIDTH    => FC_BIAS_ADDRESS_WIDTH   ,
+            NUM_WEIGHT_FILTER_CHA => FC_NUM_WEIGHT_FILTER_CHA,
+            LAST_WEIGHT           => FC_LAST_WEIGHT          ,
+            LAST_BIAS             => FC_LAST_BIAS            ,
+            LAST_FEATURE          => FC_LAST_FEATURE         ,
+            NUM_CHANNELS          => FC_NUM_CHANNELS         ,
+            NUM_UNITS             => FC_NUM_UNITS            ,
+            SCALE_SHIFT           => FC_SCALE_SHIFT          
+          )
+          port map 
+          (
+            i_CLK       => i_CLK,
+            i_CLR       => i_CLR,
+            i_GO        => w_CONV4_READY,            
+            i_PIX       => w_FC_PIX,
+            o_PIX       => w_FC_PIX_OUT,
+            o_READ_ADDR => w_FC_READ_ADDR(7 downto 0),
+            o_READY     => w_FC_READY       
+          );
+  
+  
+  w_SEL_OUT_CONV(5 downto 0) <= w_FC_READ_ADDR(5 downto 0);
+  w_ADDR_OUT_CONV(0) <= w_FC_READ_ADDR(6);
+           
+  w_FC_PIX <= w_CONV4_DATA_OUT(to_integer(unsigned(w_SEL_OUT_CONV)));    
+
+  o_DATA <= w_FC_PIX_OUT(to_integer(unsigned(i_SEL)));   
+  -- o_DATA <= w_CONV4_DATA_OUT(to_integer(unsigned(i_SEL)));   
+  o_READY <= w_FC_READY;
 end arch;
   
 

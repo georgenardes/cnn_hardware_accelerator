@@ -13,11 +13,13 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
+use ieee.numeric_std.all;
+
 
 -- Entity
 entity neuronio is
-  generic (i_DATA_WIDTH : INTEGER := 8;           
-           o_DATA_WIDTH : INTEGER := 32);
+  generic (IN_DATA_WIDTH : INTEGER := 8;           
+           OUT_DATA_WIDTH : INTEGER := 32);
   
   port (
     i_CLK       : in STD_LOGIC;
@@ -26,104 +28,112 @@ entity neuronio is
     -- habilita registrador acumulador, registrador pixel e peso
     i_ACC_ENA : in STD_LOGIC;
     i_REG_PIX_ENA : in STD_LOGIC;
-    i_REG_PES_ENA : in STD_LOGIC;
+    i_REG_WEIGHT_ENA : in STD_LOGIC;
     
     -- reseta acumulador
     i_ACC_CLR : in STD_LOGIC;
     
     -- pixel de entrada
-    i_PIX : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+    i_PIX : in STD_LOGIC_VECTOR (IN_DATA_WIDTH - 1 downto 0);
 
     -- peso de entrada
-    i_PES : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0);
+    i_WEIGHT : in STD_LOGIC_VECTOR (IN_DATA_WIDTH - 1 downto 0);
     
     -- pixel de saida
-    o_PIX       : out STD_LOGIC_VECTOR (o_DATA_WIDTH - 1 downto 0)
+    o_PIX       : out STD_LOGIC_VECTOR (OUT_DATA_WIDTH - 1 downto 0)
 
   );
 end neuronio;
 
 --- Arch
 architecture arch of neuronio is
-  
-  -- multiplicador de 8 bit
-  component pmul8 is  -- 8 x 8 = 16 bit unsigned product multiplier
-  port(a : in  std_logic_vector(7 downto 0);  -- multiplicand
-       b : in  std_logic_vector(7 downto 0);  -- multiplier
-       p : out std_logic_vector(15 downto 0)); -- product
-  end component;
-  
-  -- somador 32 bits
-  component add32 is
-    port (
-      a : in  STD_LOGIC_VECTOR(o_DATA_WIDTH -1 downto 0); 
-      b : in  STD_LOGIC_VECTOR(o_DATA_WIDTH -1 downto 0);
-      cin  : in  STD_LOGIC;
-      sum1 : out STD_LOGIC_VECTOR(o_DATA_WIDTH -1 downto 0);
-      cout : out STD_LOGIC);
-  end component;
-  
     
   -- saida multiplicador, mas com 32 bits (pois será entrada do somador)
-  signal w_MULT_OUT : std_logic_vector(o_DATA_WIDTH-1 downto 0) := (others => '0'); 
+  signal w_MULT_OUT : std_logic_vector(OUT_DATA_WIDTH-1 downto 0) := (others => '0'); 
   
   -- saida somador
-  signal w_ADD_OUT : std_logic_vector(o_DATA_WIDTH-1 downto 0) := (others => '0'); 
+  signal w_ADD_OUT : std_logic_vector(OUT_DATA_WIDTH-1 downto 0) := (others => '0'); 
   
   -- registradores pixel, peso e acumulador
-  signal r_PIX, r_PES : std_logic_vector(i_DATA_WIDTH-1 downto 0);   
-  signal r_ACC : std_logic_vector(o_DATA_WIDTH-1 downto 0); 
+  signal r_PIX, r_WEIGHT : std_logic_vector(7 downto 0);   
+  signal r_ACC : std_logic_vector(OUT_DATA_WIDTH-1 downto 0); 
+    
   
-  -- carryout do acumulador;
-  signal w_COUT : std_logic;
+  -- Registrador
+  -------------------------------
+  component registrador is 
+    generic ( DATA_WIDTH : INTEGER := 8);         
+    PORT 
+    (  
+      i_CLK       : IN  std_logic;
+      i_CLR       : IN  std_logic;
+      i_ENA       : IN  std_logic;
+      i_A         : IN  std_logic_vector(DATA_WIDTH - 1 DOWNTO 0);          
+      o_Q         : OUT std_logic_vector(DATA_WIDTH - 1 DOWNTO 0)
+    );
+  END component;
+  -------------------------------
+  
+  -- multiplicador que considera faixa de balores para pixel e pesos
+  component multiplicador_conv is
+    generic (i_DATA_WIDTH : INTEGER := 8;           
+             o_DATA_WIDTH : INTEGER := 16);      
+    port (              
+      i_DATA_1 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0); -- pixel (9 bits)
+      i_DATA_2 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0); -- peso (9 bits)
+      o_DATA   : out STD_LOGIC_VECTOR (o_DATA_WIDTH - 1 downto 0)
+    );
+  end component;
+  
+  
   
 begin
-  p_INPUT_REG : process (i_CLR, i_CLK, i_PIX, i_PES)
-  begin
-    -- reset
-    if (i_CLR = '1') then
-      r_PIX <= (others => '0');
-      r_PES <= (others => '0');      
-         
-    -- subida de clock 
-    elsif (rising_edge(i_CLK)) then
-               
-      -- registra pixel de entrada
-      if (i_REG_PIX_ENA = '1') then       
-        r_PIX <= i_PIX;
-      end if;      
-      
-      -- registra peso de entrada
-      if (i_REG_PES_ENA = '1') then       
-        r_PES <= i_PES;
-      end if;      
-      
-    end if;  
-  end process;
   
-  p_REG_ACC : process (i_CLR, i_CLK, i_ACC_CLR)
-  begin
-    -- reseta acumulador
-    if (i_CLR = '1' or i_ACC_CLR = '1') then      
-      r_ACC <= (others => '0');
-      
-    -- subida de clock 
-    elsif (rising_edge(i_CLK)) then
-         
-      -- acumula resultado da multiplicacao
-      if (i_ACC_ENA = '1') then     
-        r_ACC <= w_ADD_OUT;
-      end if;
-            
-    end if;        
-  end process;
+  u_REG_WEIGHT : registrador
+              generic map (8)
+              port map 
+              (
+                i_CLK   => i_CLK,
+                i_CLR   => i_CLR,
+                i_ENA   => i_REG_WEIGHT_ENA,
+                i_A     => i_WEIGHT,
+                o_Q     => r_WEIGHT
+              );
+  u_REG_PIX : registrador
+              generic map (8)
+              port map 
+              (
+                i_CLK   => i_CLK,
+                i_CLR   => i_CLR,
+                i_ENA   => i_REG_PIX_ENA,
+                i_A     => i_PIX,
+                o_Q     => r_PIX
+              );
+
+  u_REG_ACC : registrador
+              generic map (32)
+              port map 
+              (
+                i_CLK   => i_CLK,
+                i_CLR   => (i_CLR or i_ACC_CLR),
+                i_ENA   => i_ACC_ENA,
+                i_A     => w_ADD_OUT,
+                o_Q     => r_ACC
+              );            
+
+  u_MULT : multiplicador_conv 
+              port map 
+              (
+                i_DATA_1 => r_PIX, -- pix 
+                i_DATA_2 => r_WEIGHT, -- peso
+                o_DATA   => w_MULT_OUT(15 downto 0)
+              );
   
-  
-  -- multiplicador
-  u_MUL : pmul8 port map (r_PIX, r_PES, w_MULT_OUT(15 downto 0));
+  -- extende sinal
+  w_MULT_OUT(31 downto 16) <= (others => '1') when (w_MULT_OUT(15) = '1') else (others => '0');
   
   -- somador
-  u_ADD : add32 port map (r_ACC, w_MULT_OUT, '0', w_ADD_OUT, w_COUT);
+  w_ADD_OUT <= STD_LOGIC_VECTOR(signed(r_ACC) + signed(w_MULT_OUT));
   
   -- saida
   o_PIX <= w_ADD_OUT;           

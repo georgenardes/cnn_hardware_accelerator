@@ -69,9 +69,7 @@ architecture arch of pool1_op is
     port 
     (
       i_CLK       : in  std_logic;
-      i_CLR       : in  std_logic;
       i_DATA      : in  std_logic_vector (DATA_WIDTH - 1 downto 0);
-      i_READ_ENA  : in std_logic := '0';
       i_WRITE_ENA : in std_logic;
       i_SEL_LINE  : in std_logic_vector (1 downto 0);
       i_READ_ADDR0   : in std_logic_vector (ADDR_WIDTH - 1 downto 0) := (others => '0');
@@ -105,9 +103,7 @@ begin
                       port map
                       (
                         i_CLK        => i_CLK ,
-                        i_CLR        => i_CLR ,
                         i_DATA       => i_IN_DATA(i), -- dado para escrita em uma das linhas do buffer
-                        i_READ_ENA   => i_IN_READ_ENA,
                         i_WRITE_ENA  => i_IN_WRITE_ENA,
                         i_SEL_LINE   => i_IN_SEL_LINE,
                         i_READ_ADDR0 => i_IN_READ_ADDR0,
@@ -143,9 +139,7 @@ begin
                       port map
                       (
                         i_CLK        => i_CLK ,
-                        i_CLR        => i_CLR ,
                         i_DATA       => w_o_PIX(i), -- dado para escrita em uma das linhas do buffer
-                        i_READ_ENA   => i_OUT_READ_ENA,
                         i_WRITE_ENA  => i_OUT_WRITE_ENA,
                         i_SEL_LINE   => i_OUT_SEL_LINE,
                         i_READ_ADDR0 => i_OUT_READ_ADDR0,

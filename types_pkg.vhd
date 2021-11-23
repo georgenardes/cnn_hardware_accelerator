@@ -7,11 +7,9 @@ PACKAGE types_pkg IS
   
   type t_ARRAY_OF_INTEGER is array (integer range<>) of integer;       
   type t_ARRAY_OF_LOGIC_VECTOR is array(integer range<>) of std_logic_vector;
-    
+  type t_REGISTER_BANK is array (integer range<>) of  t_ARRAY_OF_LOGIC_VECTOR; 
    
 
-
-  
   -- tipo de entrada rebuff1
   type t_REBBUF1_IN is array (0 to 2) of STD_LOGIC_VECTOR(7 downto 0);
   

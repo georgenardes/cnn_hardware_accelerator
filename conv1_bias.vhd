@@ -78,7 +78,7 @@ BEGIN
 		operation_mode => "ROM",
 		-- outdata_aclr_a => "NONE",
 		-- outdata_reg_a => "CLOCK0",
-		ram_block_type => "MLAB",
+		-- ram_block_type => "AUTO",
 		widthad_a => DATA_DEPTH,
 		width_a => 32,
 		width_byteena_a => 1

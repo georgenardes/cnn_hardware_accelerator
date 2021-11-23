@@ -46,7 +46,7 @@ begin
   
   -- registra dado de entrada
   r_DATA <= (others => '0') 
-              when (i_REG_RST = '1') else 
+              when (i_REG_RST = '1' or i_CLR = '1') else 
             w_DATA          
               when (rising_edge(i_CLK) and i_REG_ENA = '1') else 
             r_DATA;
