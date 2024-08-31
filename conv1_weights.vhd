@@ -16,8 +16,6 @@
 --
 -- 16.1.0 Build 196 10/24/2016 SJ Lite Edition
 -- ************************************************************
-
-
 --Copyright (C) 2016  Intel Corporation. All rights reserved.
 --Your use of Intel Corporation's design tools, logic functions 
 --and other software and tools, and its AMPP partner logic 
@@ -32,65 +30,57 @@
 --devices manufactured by Intel and sold by Intel or its 
 --authorized distributors.  Please refer to the applicable 
 --agreement for further details.
+library ieee;
+use ieee.std_logic_1164.all;
 
+library altera_mf;
+use altera_mf.altera_mf_components.all;
 
-LIBRARY ieee;
-USE ieee.std_logic_1164.all;
+entity conv1_weights is
+	generic (
+		init_file_name : string  := "conv1.mif";
+		DATA_WIDTH     : integer := 8;
+		DATA_DEPTH     : integer := 10
+	);
+	port (
+		address : in std_logic_vector (DATA_DEPTH - 1 downto 0);
+		clock   : in std_logic := '1';
+		rden    : in std_logic := '1';
+		q       : out std_logic_vector (DATA_WIDTH - 1 downto 0)
+	);
+end conv1_weights;
+architecture SYN of conv1_weights is
 
-LIBRARY altera_mf;
-USE altera_mf.altera_mf_components.all;
+	signal sub_wire0 : std_logic_vector (7 downto 0);
 
-ENTITY conv1_weights IS
-  GENERIC 
-  (
-    init_file_name : STRING := "conv1.mif";
-    DATA_WIDTH : INTEGER := 8;
-    DATA_DEPTH : INTEGER := 10
-  );
-	PORT
-	(
-		address		: IN STD_LOGIC_VECTOR (DATA_DEPTH - 1 DOWNTO 0);
-		clock		: IN STD_LOGIC  := '1';
-		rden		: IN STD_LOGIC  := '1';
-		q		: OUT STD_LOGIC_VECTOR (DATA_WIDTH - 1 DOWNTO 0)
-	);   
-END conv1_weights;
-
-
-ARCHITECTURE SYN OF conv1_weights IS
-
-	SIGNAL sub_wire0	: STD_LOGIC_VECTOR (7 DOWNTO 0);
-
-BEGIN
-	q    <= sub_wire0(7 DOWNTO 0);
+begin
+	q <= sub_wire0(7 downto 0);
 
 	altsyncram_component : altsyncram
-	GENERIC MAP (
-		address_aclr_a => "NONE",
-		clock_enable_input_a => "BYPASS",
-		clock_enable_output_a => "BYPASS",
-		init_file => init_file_name,
+	generic map(
+		address_aclr_a         => "NONE",
+		clock_enable_input_a   => "BYPASS",
+		clock_enable_output_a  => "BYPASS",
+		init_file              => init_file_name,
 		intended_device_family => "Cyclone V",
-		lpm_hint => "ENABLE_RUNTIME_MOD=NO",
-		lpm_type => "altsyncram",
-		numwords_a => 2**DATA_DEPTH,
-		operation_mode => "ROM",
-		outdata_aclr_a => "NONE",
-		outdata_reg_a => "UNREGISTERED",
-		widthad_a => DATA_DEPTH,
-		width_a => 8,
-		width_byteena_a => 1
+		lpm_hint               => "ENABLE_RUNTIME_MOD=NO",
+		lpm_type               => "altsyncram",
+		numwords_a             => 2 ** DATA_DEPTH,
+		operation_mode         => "ROM",
+		outdata_aclr_a         => "NONE",
+		outdata_reg_a          => "UNREGISTERED",
+		widthad_a              => DATA_DEPTH,
+		width_a                => 8,
+		width_byteena_a        => 1
 	)
-	PORT MAP (
+	port map(
 		address_a => address,
-		clock0 => clock,
-		rden_a => rden,
-		q_a => sub_wire0
+		clock0    => clock,
+		rden_a    => rden,
+		q_a       => sub_wire0
 	);
 
-
-
-END SYN;
+end SYN;
 
 -- ============================================================
 -- CNX file retrieval info

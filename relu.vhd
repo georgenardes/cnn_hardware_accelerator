@@ -15,26 +15,23 @@ use ieee.STD_LOGIC_UNSIGNED.all;
 
 -- Entity
 entity relu is
-  generic (DATA_WIDTH : INTEGER := 8);
-  
-  port 
-  (
+  generic (DATA_WIDTH : integer := 8);
+
+  port (
     -- pixel de entrada
-    i_PIX : in STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0);
+    i_PIX : in std_logic_vector (DATA_WIDTH - 1 downto 0);
 
     -- pixel de saida
-    o_PIX : out STD_LOGIC_VECTOR (DATA_WIDTH - 1 downto 0)
+    o_PIX : out std_logic_vector (DATA_WIDTH - 1 downto 0)
 
   );
 end relu;
 
 --- Arch
 architecture arch of relu is
-  
-  
 begin
-  
+
   -- atribui 0 aos numeros negativos, identificados pelo oitavo bit em 1
   o_PIX <= i_PIX; -- "00000000" when (i_PIX(DATA_WIDTH - 1) = '1') else i_PIX;
-  
+
 end arch;

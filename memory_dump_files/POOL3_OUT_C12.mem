@@ -1,5 +1,5 @@
 // memory data file (do not edit the following line - required for mem load use)
-// instance=/cnn_top_tb/u_DUT/u_POOL3/u_OPERACIONAL/GEN_CHANNELS(12)/u_BUFFER_OUT/GEN_BLOCK(0)/ramx/altsyncram_component/MEMORY/m_mem_data_a
+// instance=/cnn_top_tb/u_DUT/u_POOL3/u_OPERACIONAL/GEN_CHANNELS(12)/u_BUFFER_OUT/GEN_MK10/GEN_BLOCK(0)/ramx/altsyncram_component/MEMORY/m_mem_data_a
 // format=mti addressradix=d dataradix=b version=1.0 wordsperline=8
 1023: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 1015: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
