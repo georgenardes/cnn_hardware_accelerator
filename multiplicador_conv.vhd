@@ -17,39 +17,38 @@ use ieee.numeric_std.all;
 
 -- Entity
 entity multiplicador_conv is
-  generic (i_DATA_WIDTH : INTEGER := 8;           
-           o_DATA_WIDTH : INTEGER := 16);
-    
-  port (              
+  generic (
+    i_DATA_WIDTH : integer := 8;
+    o_DATA_WIDTH : integer := 16);
+
+  port (
     -- dados de entrada
-    i_DATA_1 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0); -- pixel (9 bits)
-    i_DATA_2 : in STD_LOGIC_VECTOR (i_DATA_WIDTH - 1 downto 0); -- peso (9 bits)
-    
+    i_DATA_1 : in std_logic_vector (i_DATA_WIDTH - 1 downto 0); -- pixel (9 bits)
+    i_DATA_2 : in std_logic_vector (i_DATA_WIDTH - 1 downto 0); -- peso (9 bits)
+
     -- dado de saida
-    o_DATA   : out STD_LOGIC_VECTOR (o_DATA_WIDTH - 1 downto 0)
+    o_DATA : out std_logic_vector (o_DATA_WIDTH - 1 downto 0)
 
   );
 end multiplicador_conv;
 
 --- Arch
 architecture arch of multiplicador_conv is
-  
-  signal w_A : STD_LOGIC_VECTOR (i_DATA_WIDTH downto 0) := (others => '0'); -- pixel
-  signal w_B : STD_LOGIC_VECTOR (i_DATA_WIDTH downto 0) := (others => '0'); -- peso
-  
-  signal w_DATA : STD_LOGIC_VECTOR (17 downto 0); -- 18b
-  
+
+  signal w_A : std_logic_vector (i_DATA_WIDTH downto 0) := (others => '0'); -- pixel
+  signal w_B : std_logic_vector (i_DATA_WIDTH downto 0) := (others => '0'); -- peso
+
+  signal w_DATA : std_logic_vector (17 downto 0); -- 18b
+
 begin
-     
+
   w_A(i_DATA_WIDTH - 1 downto 0) <= i_DATA_1;
-  
+
   w_B(i_DATA_WIDTH - 1 downto 0) <= i_DATA_2;
-  w_B(i_DATA_WIDTH) <= i_DATA_2(i_DATA_WIDTH - 1); -- estende bit de sinal do peso
-  
-    
+  w_B(i_DATA_WIDTH)              <= i_DATA_2(i_DATA_WIDTH - 1); -- estende bit de sinal do peso
   -- multiplicação
-  w_DATA <= STD_LOGIC_VECTOR(signed(w_A) * signed(w_B));
-  
+  w_DATA <= std_logic_vector(signed(w_A) * signed(w_B));
+
   o_DATA <= w_DATA(o_DATA_WIDTH - 1 downto 0);
-  
+
 end arch;

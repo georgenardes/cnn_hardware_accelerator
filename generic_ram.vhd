@@ -16,8 +16,6 @@
 --
 -- 16.1.0 Build 196 10/24/2016 SJ Lite Edition
 -- ************************************************************
-
-
 --Copyright (C) 2016  Intel Corporation. All rights reserved.
 --Your use of Intel Corporation's design tools, logic functions 
 --and other software and tools, and its AMPP partner logic 
@@ -32,63 +30,57 @@
 --devices manufactured by Intel and sold by Intel or its 
 --authorized distributors.  Please refer to the applicable 
 --agreement for further details.
+library ieee;
+use ieee.std_logic_1164.all;
 
+library altera_mf;
+use altera_mf.altera_mf_components.all;
 
-LIBRARY ieee;
-USE ieee.std_logic_1164.all;
-
-LIBRARY altera_mf;
-USE altera_mf.altera_mf_components.all;
-
-ENTITY generic_ram IS
-  GENERIC (DATA_WIDTH : INTEGER := 8;
-           DATA_DEPTH : INTEGER := 10);     
-	PORT
-	(
-		address		: IN STD_LOGIC_VECTOR (DATA_DEPTH - 1 DOWNTO 0);
-		clock		: IN STD_LOGIC  := '1';
-		data		: IN STD_LOGIC_VECTOR (DATA_WIDTH - 1 DOWNTO 0);
-		wren		: IN STD_LOGIC ;
-		q		: OUT STD_LOGIC_VECTOR (DATA_WIDTH - 1 DOWNTO 0)
+entity generic_ram is
+	generic (
+		DATA_WIDTH : integer := 8;
+		DATA_DEPTH : integer := 10);
+	port (
+		address : in std_logic_vector (DATA_DEPTH - 1 downto 0);
+		clock   : in std_logic := '1';
+		data    : in std_logic_vector (DATA_WIDTH - 1 downto 0);
+		wren    : in std_logic;
+		q       : out std_logic_vector (DATA_WIDTH - 1 downto 0)
 	);
-END generic_ram;
+end generic_ram;
+architecture SYN of generic_ram is
 
+	signal sub_wire0 : std_logic_vector (DATA_WIDTH - 1 downto 0);
 
-ARCHITECTURE SYN OF generic_ram IS
-
-	SIGNAL sub_wire0	: STD_LOGIC_VECTOR (DATA_WIDTH - 1 DOWNTO 0);
-
-BEGIN
-	q    <= sub_wire0((DATA_WIDTH - 1) DOWNTO 0);
+begin
+	q <= sub_wire0((DATA_WIDTH - 1) downto 0);
 
 	altsyncram_component : altsyncram
-	GENERIC MAP (
-		clock_enable_input_a => "BYPASS",
-		clock_enable_output_a => "BYPASS",
-		intended_device_family => "Cyclone V",
-		lpm_hint => "ENABLE_RUNTIME_MOD=NO",
-		lpm_type => "altsyncram",
-		numwords_a => 2**DATA_DEPTH, -- QTD ENDERECOS (2^10)
-		operation_mode => "SINGLE_PORT",
-		outdata_aclr_a => "NONE",
-		outdata_reg_a => "CLOCK0",
-		power_up_uninitialized => "FALSE",
+	generic map(
+		clock_enable_input_a          => "BYPASS",
+		clock_enable_output_a         => "BYPASS",
+		intended_device_family        => "Cyclone V",
+		lpm_hint                      => "ENABLE_RUNTIME_MOD=NO",
+		lpm_type                      => "altsyncram",
+		numwords_a                    => 2 ** DATA_DEPTH, -- QTD ENDERECOS (2^10)
+		operation_mode                => "SINGLE_PORT",
+		outdata_aclr_a                => "NONE",
+		outdata_reg_a                 => "CLOCK0",
+		power_up_uninitialized        => "FALSE",
 		read_during_write_mode_port_a => "DONT_CARE",
-		widthad_a => DATA_DEPTH, -- QTD BIT ENDERECO
-		width_a => DATA_WIDTH, -- QTD BIT DADOS
-		width_byteena_a => 1
+		widthad_a                     => DATA_DEPTH, -- QTD BIT ENDERECO
+		width_a                       => DATA_WIDTH, -- QTD BIT DADOS
+		width_byteena_a               => 1
 	)
-	PORT MAP (
+	port map(
 		address_a => address,
-		clock0 => clock,
-		data_a => data,
-		wren_a => wren,
-		q_a => sub_wire0
+		clock0    => clock,
+		data_a    => data,
+		wren_a    => wren,
+		q_a       => sub_wire0
 	);
 
-
-
-END SYN;
+end SYN;
 
 -- ============================================================
 -- CNX file retrieval info
@@ -156,4 +148,3 @@ END SYN;
 -- Retrieval info: GEN_FILE: TYPE_NORMAL generic_ram.cmp TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL generic_ram.bsf FALSE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL generic_ram_inst.vhd TRUE
--- Retrieval info: LIB_FILE: altera_mf
